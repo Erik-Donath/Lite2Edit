@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "lite2edit",
+  "version": "${version}",
+  "name": "Lite2Edit",
+  "description": "A World Edit Plugin that allows you to load litemetica scematics.",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/lite2edit/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-datagen": [
+      "de.erikd.lite2edit.client.Lite2editDataGenerator"
+    ],
+    "main": [
+      "de.erikd.lite2edit.Lite2edit"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-language-kotlin": ">=${kotlin_loader_version}",
+    "minecraft": "${minecraft_version}",
+    "worldedit": ">=${worldedit_version}"
+  }
+}
