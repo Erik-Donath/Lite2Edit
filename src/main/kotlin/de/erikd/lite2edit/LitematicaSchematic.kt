@@ -152,6 +152,13 @@ class LitematicaSchematic(
             abs(size.x * size.y * size.z)
         }
 
+        val offset: Vec3
+            get() = Vec3(
+                position.x + if (size.x < 0) size.x + 1 else 0,
+                position.y + if (size.y < 0) size.y + 1 else 0,
+                position.z + if (size.z < 0) size.z + 1 else 0
+            )
+
         /**
          * Decodes the bit-packed blockStates into an IntArray of palette indices.
          */
