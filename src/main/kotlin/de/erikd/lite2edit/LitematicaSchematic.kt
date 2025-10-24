@@ -290,12 +290,12 @@ class LitematicaSchematic(
         }
 
         /**
-         * Returns a sequence of all tile entities for iteration.
+         * Returns a sequence of all tile entities.
          */
         fun tileEntitiesSequence() = tileEntities.asSequence()
 
         /**
-         * Returns a sequence of all entities for iteration.
+         * Returns a sequence of all entities.
          */
         fun entitiesSequence() = entities.asSequence()
 
