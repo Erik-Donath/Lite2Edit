@@ -117,45 +117,81 @@ object LitemeticaReadConverter {
         for (i in 0 until paletteList.size) {
             val blockTag = paletteList.getCompound(i)
             val blockName = blockTag.getString("Name")
-
+            
             try {
-                // Parse block type from name (e.g., "minecraft:stone")
+                // Parse block type from name
                 val blockType = BlockTypes.get(blockName)
-
+                
                 if (blockType == null) {
                     logger.warn("Unknown block type: $blockName")
                     palette.add(null)
                     continue
                 }
-
-                // Get default state
-                var blockState = blockType.defaultState
-
-                // Apply properties if they exist
-                val properties = blockTag.getCompound("Properties")
-                if (!properties.isEmpty) {
-                    for (propertyName in properties.keys) {
-                        val propertyValue = properties.getString(propertyName)
-
-                        try {
-                            blockState = blockState.with(
-                                blockType.getProperty(propertyName),
-                                propertyValue
-                            )
-                        } catch (e: Exception) {
-                            logger.debug("Failed to set property $propertyName=$propertyValue for $blockName")
-                        }
-                    }
-                }
-
+                
+                // Parse block state with properties
+                val blockState = parseBlockState(blockType, blockTag.getCompound("Properties"))
+                
                 palette.add(blockState)
+                logger.debug("Added to palette: ${blockState.asString}")
             } catch (e: Exception) {
                 logger.warn("Failed to parse block: $blockName", e)
                 palette.add(null)
             }
         }
-
+        
         return palette
+    }
+    
+    private fun parseBlockState(
+        blockType: com.sk89q.worldedit.world.block.BlockType,
+        properties: NbtCompound
+    ): BlockState {
+        var state = blockType.defaultState
+        
+        if (properties.isEmpty) {
+            return state
+        }
+        
+        // Try to apply each property
+        for (propName in properties.keys) {
+            val propValue = properties.getString(propName)
+            
+            try {
+                // Get all properties from the block type
+                val props = blockType.properties
+                val property = props.find { it.name.equals(propName, ignoreCase = true) }
+                
+                if (property != null) {
+                    // Find matching value
+                    val values = property.values
+                    val matchingValue = values.find { it.toString().equals(propValue, ignoreCase = true) }
+                    
+                    if (matchingValue != null) {
+                        state = setPropertyUnchecked(state, property, matchingValue)
+                    } else {
+                        logger.debug("No matching value for property $propName=$propValue")
+                    }
+                } else {
+                    logger.debug("Property $propName not found on block type")
+                }
+            } catch (e: Exception) {
+                logger.debug("Failed to set property $propName=$propValue: ${e.message}")
+            }
+        }
+        
+        return state
+    }
+    
+    @Suppress("UNCHECKED_CAST")
+    private fun setPropertyUnchecked(
+        state: BlockState,
+        property: com.sk89q.worldedit.registry.state.Property<*>,
+        value: Any
+    ): BlockState {
+        return state.with(
+            property as com.sk89q.worldedit.registry.state.Property<Any>,
+            value
+        )
     }
 
     private fun decodeBlocks(blockStates: LongArray, bitsPerBlock: Int, numBlocks: Int): IntArray {
