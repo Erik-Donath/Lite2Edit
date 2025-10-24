@@ -18,14 +18,14 @@ class LitematicaSchematicFormat : ClipboardFormat {
 
     override fun getReader(inputStream: InputStream?) = inputStream?.let { stream ->
         object : ClipboardReader {
-            override fun read()  = LitematicaReadConverter.read(stream)
+            override fun read()  = ReadConverter.read(stream)
             override fun close() = stream.close()
         }
     } ?: throw IllegalArgumentException("InputStream cannot be null")
 
     override fun getWriter(outputStream: OutputStream?) = outputStream?.let { stream ->
         object : ClipboardWriter {
-            override fun write(clipboard: Clipboard) = LitematicaWriteConverter.write(clipboard, stream)
+            override fun write(clipboard: Clipboard) = WriteConverter.write(clipboard, stream)
             override fun close() = stream.close()
         }
     } ?: throw IllegalArgumentException("OutputStream cannot be null")
