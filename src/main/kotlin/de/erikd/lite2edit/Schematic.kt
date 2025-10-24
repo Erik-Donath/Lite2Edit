@@ -3,6 +3,40 @@ package de.erikd.lite2edit
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtList
 
+/**
+ * Litematica File Format Structure:
+ *
+ * Root NBT (GZIP compressed):
+ * ├─ MinecraftDataVersion: Int (e.g., 2975 for 1.20.4)
+ * ├─ Version: Int (Litematica format version)
+ * ├─ Metadata: Compound
+ * │  ├─ Name: String (schematic name)
+ * │  ├─ Author: String
+ * │  ├─ Description: String
+ * │  └─ TimeCreated/Modified: Long
+ * └─ Regions: Compound (can contain multiple named regions)
+ *    └─ <RegionName>: Compound
+ *       ├─ Position: Compound {x, y, z} (offset in world)
+ *       ├─ Size: Compound {x, y, z} (dimensions, can be negative!)
+ *       ├─ BlockStatePalette: List<Compound>
+ *       │  └─ Entry: Compound
+ *       │     ├─ Name: String (e.g., "minecraft:stone")
+ *       │     └─ Properties: Compound (optional, e.g., {facing: "north"})
+ *       ├─ BlockStates: LongArray (bit-packed palette indices)
+ *       ├─ TileEntities: List<Compound> (chests, signs, etc.)
+ *       │  └─ Entry: Compound {x, y, z, id, ...custom NBT}
+ *       └─ Entities: List<Compound> (mobs, armor stands, etc.)
+ *          └─ Entry: Compound {Pos, id, ...custom NBT}
+ *
+ * Block Storage Format:
+ * - Blocks are stored in a bit-packed long array (BlockStates)
+ * - Each block is represented by a palette index
+ * - Bits per block = max(2, ceil(log2(palette_size)))
+ * - Iteration order: X (inner) -> Z -> Y (outer)
+ * - Negative dimensions mean the region extends in negative direction
+ */
+
+
 data class Schematic(
     var minecraftDataVersion: Int = 0,
     var version: Int = 0,
