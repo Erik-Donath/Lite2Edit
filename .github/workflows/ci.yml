@@ -5,7 +5,6 @@ on:
     branches:
       - '**'
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,25 +25,8 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Cache Gradle directories
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties','**/*.gradle.kts') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Run checks (build + tests)
         run: ./gradlew --no-daemon check --stacktrace
-
-      - name: Upload test results (artifact)
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-results
-          path: build/test-results
