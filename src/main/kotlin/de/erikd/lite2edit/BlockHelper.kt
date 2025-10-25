@@ -8,13 +8,13 @@ import org.slf4j.LoggerFactory
 object BlockHelper {
     private val logger = LoggerFactory.getLogger(BlockHelper::class.java)
 
-    /** Parses a WorldEdit BlockState from a block name and optional properties NBT. */
     fun parseBlockState(name: String, properties: NbtCompound?): BlockState? {
         val blockType = BlockTypes.get(name)
         if (blockType == null) {
             logger.warn("Unknown block type: $name")
             return null
         }
+
         var state = blockType.defaultState
         if (properties == null || properties.isEmpty) return state
 
@@ -38,6 +38,7 @@ object BlockHelper {
                 logger.debug("Failed to set property $propName=$propValue: ${e.message}")
             }
         }
+
         return state
     }
 
