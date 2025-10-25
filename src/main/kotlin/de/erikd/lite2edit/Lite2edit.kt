@@ -5,6 +5,6 @@ import net.fabricmc.api.ModInitializer
 
 class Lite2edit : ModInitializer {
     override fun onInitialize() {
-        ClipboardFormats.registerClipboardFormat(LitematicaSchematicFormat())
+        ClipboardFormats.registerClipboardFormat(LitematicaSchematicFormater())
     }
 }

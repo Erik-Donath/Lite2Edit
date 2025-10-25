@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
 
-class LitematicaSchematicFormat : ClipboardFormat {
-    private val logger = LoggerFactory.getLogger(LitematicaSchematicFormat::class.java)
+class LitematicaSchematicFormater : ClipboardFormat {
+    private val logger = LoggerFactory.getLogger(LitematicaSchematicFormater::class.java)
 
     override fun getName(): String = "Litematic Clipboard Format"
     override fun getAliases(): Set<String?> = setOf("litematic", "ltc")
