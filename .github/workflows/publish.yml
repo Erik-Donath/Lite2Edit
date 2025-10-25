@@ -92,15 +92,17 @@ jobs:
           VERSION="${{ inputs.mod_version || 'default' }}"
           PROJECT="${{ secrets.MODRINTH_ID }}"
           MC_VERSION="${{ matrix.minecraft }}"
+
           RESPONSE=$(curl -s -H "X-API-Key: $MODRINTH_TOKEN" "https://api.modrinth.com/v2/project/$PROJECT/version")
-          if echo "$RESPONSE" | jq -e ".hits[] | select(.version_number == \"$VERSION\" and (.game_versions[] == \"$MC_VERSION\"))" > /dev/null; then
+
+          # Use jq to check for matching version_number and game_versions array contains MC_VERSION
+          if echo "$RESPONSE" | jq -e ".[] | select(.version_number == \"$VERSION\" and (.game_versions[] == \"$MC_VERSION\"))" > /dev/null; then
             echo "Version $VERSION for MC $MC_VERSION already exists on Modrinth, skipping publish."
             echo "publish_modrinth=false" >> $GITHUB_OUTPUT
           else
             echo "Version $VERSION for MC $MC_VERSION not found on Modrinth, will publish."
             echo "publish_modrinth=true" >> $GITHUB_OUTPUT
           fi
-
       - name: Publish to Modrinth for minecraft ${{ matrix.minecraft }}
         if: steps.check_modrinth_version.outputs.publish_modrinth == 'true'
         uses: cloudnode-pro/modrinth-publish@v2
