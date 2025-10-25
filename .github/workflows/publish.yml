@@ -1,0 +1,96 @@
+name: Publish (Maven + Release)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: publish-${{ github.repository }}-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --tags --prune
+
+      - name: Detect tag(s) pointing to current commit
+        id: tagcheck
+        run: |
+          tags=$(git tag --points-at "${GITHUB_SHA}" || true)
+          echo "Found tags: $tags"
+          selected=""
+          for t in $tags; do
+            if [[ $t =~ ^v[0-9] ]]; then
+              selected="$t"
+              break
+            fi
+          done
+          if [[ -z "$selected" ]]; then
+            echo "No semantic tag (v*) pointing at ${GITHUB_SHA}. Exiting."
+            echo "PUBLISH_TAG=" >> $GITHUB_ENV
+            exit 0
+          fi
+          echo "PUBLISH_TAG=$selected" >> $GITHUB_ENV
+          echo "Detected publish tag: $selected"
+
+      - name: Exit if not a tag run
+        if: ${{ env.PUBLISH_TAG == '' }}
+        run: |
+          echo "This workflow only publishes artifacts for tag pushes (v*). Nothing to do."
+          exit 0
+
+      - name: Compute release version (strip leading 'v')
+        run: |
+          # Remove leading 'v' if present
+          tag="${PUBLISH_TAG}"
+          release="${tag#v}"
+          echo "RELEASE_VERSION=$release" >> $GITHUB_ENV
+          echo "Computed RELEASE_VERSION=$release from tag $tag"
+
+      - name: Set up JDK 17 and cache Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build (assemble and run tests)
+        run: |
+          ./gradlew --no-daemon clean build --stacktrace -PreleaseVersion=${{ env.RELEASE_VERSION }}
+
+      - name: Publish to GitHub Packages (Maven)
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          ./gradlew --no-daemon publish --stacktrace -PreleaseVersion=${RELEASE_VERSION}
+
+      - name: Create GitHub Release and upload built jars
+        id: ghrelease
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.PUBLISH_TAG }}
+          tag_name: ${{ env.PUBLISH_TAG }}
+          files: build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

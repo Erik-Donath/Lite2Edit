@@ -7,11 +7,23 @@ plugins {
     id("maven-publish")
 }
 
-version = project.property("mod_version") as String
-group = project.property("maven_group") as String
+//
+// Version / group handling
+// - Use mod_version / maven_group from gradle.properties by default (existing), but allow
+//   overriding the published version via -PreleaseVersion=... or the RELEASE_VERSION env var
+//   (the publish workflow will set RELEASE_VERSION from the tag).
+//
+val defaultModVersion = (findProperty("mod_version") as String?) ?: "0.1.0"
+val defaultGroup = (findProperty("maven_group") as String?) ?: "com.erikdonath"
+
+// releaseVersion property takes precedence (use -PreleaseVersion=... from workflow), then env, then default
+val releaseVersionProp = (findProperty("releaseVersion") as String?)
+val releaseVersionEnv = System.getenv("RELEASE_VERSION")
+version = releaseVersionProp ?: releaseVersionEnv ?: defaultModVersion
+group = (findProperty("maven_group") as String?) ?: defaultGroup
 
 base {
-    archivesName.set(project.property("archives_base_name") as String)
+    archivesName.set((findProperty("archives_base_name") as String?) ?: project.name)
 }
 
 val targetJavaVersion = 17
@@ -69,16 +81,56 @@ tasks.jar {
     }
 }
 
-// configure the maven publication
+// Publishing configuration
+// - Publish the remapped mod jar if Loom provides remapJar/remapSourcesJar; otherwise publish the standard jar/sourcesJar.
+// - Credentials are read from env (GITHUB_ACTOR/GITHUB_TOKEN) or gradle properties (gpr.user/gpr.key).
+val githubPackagesOwner = (findProperty("github_packages_owner") as String?) ?: "Erik-Donath"
+val githubPackagesRepo = (findProperty("github_packages_repo") as String?) ?: "Lite2Edit"
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = project.property("archives_base_name") as String
-            from(components["java"])
+            artifactId = (findProperty("archives_base_name") as String?) ?: project.name
+
+            // Prefer Loom remapped outputs if available
+            val remapJar = tasks.findByName("remapJar")
+            val remapSourcesJar = tasks.findByName("remapSourcesJar")
+            val sourcesJar = tasks.findByName("sourcesJar")
+            val jarTask = tasks.findByName("jar")
+
+            if (remapJar != null) {
+                // publish remapped jar (recommended for Fabric mods)
+                artifact(remapJar)
+            } else if (jarTask != null) {
+                from(components["java"])
+            } else {
+                // fallback: try to publish whatever "java" component provides
+                try {
+                    from(components["java"])
+                } catch (_: Exception) {
+                    // nothing to do; user can customize if their layout is different
+                }
+            }
+
+            // publish a sources jar if available
+            when {
+                remapSourcesJar != null -> artifact(remapSourcesJar)
+                sourcesJar != null -> artifact(sourcesJar)
+                else -> {
+                    // withSourcesJar() above likely created 'sourcesJar'; if not present, skip silently
+                }
+            }
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/$githubPackagesOwner/$githubPackagesRepo")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: (findProperty("gpr.user") as String?)
+                password = System.getenv("GITHUB_TOKEN") ?: (findProperty("gpr.key") as String?)
+            }
+        }
     }
 }
