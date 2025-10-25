@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        minecraft: ["1.20.4"]
+        minecraft: ["1.20.4", "1.19.4"]
     steps:
       - name: Checkout (full history)
         uses: actions/checkout@v4
@@ -40,29 +40,25 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Print resolved coordinates (sanity)
-        run: |
-          EXTRA=""
-          if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
-          ./gradlew printVersion ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
-
-      - name: Build (assemble and run tests) for minecraft ${{ matrix.minecraft }}
-        run: |
-          EXTRA=""
-          if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
-          ./gradlew --no-daemon clean build --stacktrace ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
-
       - name: Set VERSION variable
         id: set_version
         run: |
           if [ -n "${{ inputs.mod_version }}" ]; then
             echo "VERSION=${{ inputs.mod_version }}" >> $GITHUB_ENV
           else
-            # Fallback to extracting version from gradle.properties or gradlew output if needed
-            # Example:
             VERSION_FROM_BUILD=$(./gradlew printVersion -q | tail -n1)
             echo "VERSION=$VERSION_FROM_BUILD" >> $GITHUB_ENV
           fi
+
+      - name: Print resolved coordinates (sanity)
+        run: ./gradlew printVersion -Pmod_version="${{ env.VERSION }}" -Pminecraft_version="${{ matrix.minecraft }}"
+        env:
+          VERSION: ${{ env.VERSION }}
+
+      - name: Build (assemble and run tests) for minecraft ${{ matrix.minecraft }}
+        run: ./gradlew --no-daemon clean build --stacktrace -Pmod_version="${{ env.VERSION }}" -Pminecraft_version="${{ matrix.minecraft }}"
+        env:
+          VERSION: ${{ env.VERSION }}
 
       - name: Check if version exists on GitHub Packages
         id: check_github_version
@@ -71,8 +67,8 @@ jobs:
           VERSION: ${{ env.VERSION }}
         run: |
           PACKAGE="${{ inputs.package_name || 'default-artifact' }}"
-          OWNER="$(echo $GITHUB_REPOSITORY | cut -d/ -f1)"
-          REPO="$(echo $GITHUB_REPOSITORY | cut -d/ -f2)"
+          OWNER="$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)"
+          REPO="$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)"
 
           RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -92,10 +88,7 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ env.VERSION }}
-        run: |
-          EXTRA=""
-          if [ -n "${VERSION}" ]; then EXTRA="-Pmod_version=${VERSION}"; fi
-          ./gradlew --no-daemon publish --stacktrace --info ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
+        run: ./gradlew --no-daemon publish --stacktrace --info -Pmod_version="${VERSION}" -Pminecraft_version="${{ matrix.minecraft }}"
 
       - name: Check if version exists on Modrinth
         id: check_modrinth_version
@@ -125,4 +118,5 @@ jobs:
           changelog: ${{ github.event.release.body || 'Auto-published via GitHub Actions' }}
           loaders: fabric
           game-versions: ${{ matrix.minecraft }}
-          files: build/libs/yourmod-${{ matrix.minecraft }}-${{ env.VERSION }}.jar
+          files: build/libs/lite2edit-${{ matrix.minecraft }}-${{ env.VERSION }}.jar
+
