@@ -32,10 +32,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // In actions/github-script the workflow_dispatch inputs are available on the
+            // event payload (context.payload.inputs). 'inputs' is not a global variable.
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const workflowFile = 'ci.yml'; // workflow filename for CI
-            const commitSha = inputs.commit_sha || '';
+            const commitSha = (context.payload.inputs && context.payload.inputs.commit_sha) || '';
             // List workflow runs for the CI workflow on branch master
             const runsResp = await github.rest.actions.listWorkflowRuns({
               owner,
