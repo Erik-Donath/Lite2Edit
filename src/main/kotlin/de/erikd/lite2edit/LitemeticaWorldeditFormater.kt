@@ -9,7 +9,7 @@ import java.io.InputStream
 import java.io.OutputStream
 
 class LitematicaSchematicFormater : ClipboardFormat {
-    private val logger = LoggerFactory.getLogger(LitematicaSchematicFormater::class.java)
+    //private val logger = LoggerFactory.getLogger(LitematicaSchematicFormater::class.java)
 
     override fun getName(): String = "Litematic Clipboard Format"
     override fun getAliases(): Set<String?> = setOf("litematic", "ltc")
