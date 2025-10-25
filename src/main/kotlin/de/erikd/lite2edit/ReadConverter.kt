@@ -17,8 +17,8 @@ object ReadConverter {
         val schematic = LitematicaSchematic(
             NbtIo.readCompressed(inputStream, NbtSizeTracker.ofUnlimitedBytes())
         )
-        if (schematic.regions.isEmpty()) throw IllegalStateException("No regions found in schematic")
 
+        if (schematic.regions.isEmpty()) throw IllegalStateException("No regions found in schematic")
         return convertRegions(schematic.regions)
     }
 
@@ -34,11 +34,15 @@ object ReadConverter {
                 BlockVector3.ZERO,
                 BlockVector3.at(sizeX - 1, sizeY - 1, sizeZ - 1)
             )
+
             val clipboard = BlockArrayClipboard(clipboardRegion)
             clipboard.origin = BlockVector3.at(offset.x, offset.y, offset.z)
 
-            val blocksSet = convertRegion(region, clipboard, 0, 0, 0)
-            logger.info("Converted single Litematica region sized $sizeX x $sizeY x $sizeZ, set $blocksSet blocks")
+            val (blocksSet, tileEntitiesSet) = convertRegion(region, clipboard, 0, 0, 0)
+            logger.info(
+                "Converted single Litematica region sized $sizeX x $sizeY x $sizeZ, " +
+                        "set $blocksSet blocks and $tileEntitiesSet tile entities"
+            )
             return clipboard
         }
 
@@ -79,19 +83,28 @@ object ReadConverter {
             BlockVector3.ZERO,
             BlockVector3.at(totalWidth - 1, totalHeight - 1, totalLength - 1)
         )
+
         val clipboard = BlockArrayClipboard(clipboardRegion)
         clipboard.origin = BlockVector3.at(minX, minY, minZ)
 
-        var blocksSet = 0
+        var totalBlocksSet = 0
+        var totalTileEntitiesSet = 0
+
         regions.values.forEach { region ->
             val offset = region.offset
             val relX = offset.x - minX
             val relY = offset.y - minY
             val relZ = offset.z - minZ
 
-            blocksSet += convertRegion(region, clipboard, relX, relY, relZ)
+            val (blocksSet, tileEntitiesSet) = convertRegion(region, clipboard, relX, relY, relZ)
+            totalBlocksSet += blocksSet
+            totalTileEntitiesSet += tileEntitiesSet
         }
-        logger.info("Converted multiple Litematica regions sized $totalWidth x $totalHeight x $totalLength, set $blocksSet blocks")
+
+        logger.info(
+            "Converted multiple Litematica regions sized $totalWidth x $totalHeight x $totalLength, " +
+                    "set $totalBlocksSet blocks and $totalTileEntitiesSet tile entities"
+        )
         return clipboard
     }
 
@@ -101,20 +114,39 @@ object ReadConverter {
         offsetX: Int,
         offsetY: Int,
         offsetZ: Int
-    ): Int {
+    ): Pair<Int, Int> {
         // TODO: Consider caching the palette conversion if regions are large or accessed multiple times
         val palette = region.blockStatePalette.map { entry ->
             BlockHelper.parseBlockState(entry.name, entry.properties)
         }
 
+        // Create tile entity lookup map for fast access
+        val tileEntityMap = TileEntityHelper.createTileEntityMap(region.tileEntities)
+
         var blocksSet = 0
+        var tileEntitiesSet = 0
+
         region.blocksWithCoordinates().forEach { (x, y, z, paletteIndex) ->
             if (paletteIndex in palette.indices) {
                 val blockState = palette[paletteIndex]
                 if (blockState != null) {
                     try {
-                        clipboard.setBlock(BlockVector3.at(offsetX + x, offsetY + y, offsetZ + z), blockState)
+                        val worldX = offsetX + x
+                        val worldY = offsetY + y
+                        val worldZ = offsetZ + z
+                        val position = BlockVector3.at(worldX, worldY, worldZ)
+
+                        // Check if tile entity exists for this position
+                        val tileEntityNbt = tileEntityMap[TileEntityHelper.positionKey(x, y, z)]
+
+                        // Create block (with or without tile entity data)
+                        val baseBlock = TileEntityHelper.createBaseBlock(blockState, tileEntityNbt)
+                        clipboard.setBlock(position, baseBlock)
+
                         blocksSet++
+                        if (tileEntityNbt != null) {
+                            tileEntitiesSet++
+                        }
                     } catch (e: Exception) {
                         // TODO: Evaluate whether to continue after errors or abort
                         // Log detailed error for better tracing
@@ -133,8 +165,7 @@ object ReadConverter {
             }
         }
 
-        // TODO: Extend to convert tile entities and entities into clipboard or related storage
-
-        return blocksSet
+        // TODO: Extend to convert entities (not just tile entities) into clipboard or related storage
+        return Pair(blocksSet, tileEntitiesSet)
     }
 }
