@@ -64,45 +64,6 @@ class LitematicaSchematic(
         put("Regions", regionsCompound)
     }
 
-    /**
-     * Iterates over all blocks in all regions, invoking the given action with
-     * the region name, block coordinates, palette index, and the block state entry.
-     */
-    fun forEachBlock(action: (regionName: String, x: Int, y: Int, z: Int, blockIndex: Int, blockStateEntry: Region.BlockStateEntry) -> Unit) {
-        regions.forEach { (regionName, region) ->
-            region.blocksWithCoordinates().forEach { (x, y, z, idx) ->
-                if (idx in region.blockStatePalette.indices) {
-                    action(regionName, x, y, z, idx, region.blockStatePalette[idx])
-                }
-            }
-        }
-    }
-
-    /**
-     * Returns a sequence of all blocks with their full context (regionName, coordinates, palette index, block state) across all regions.
-     */
-    fun blocksSequence() = sequence {
-        regions.forEach { (regionName, region) ->
-            region.blocksWithCoordinates().forEach { (x, y, z, idx) ->
-                if (idx in region.blockStatePalette.indices) {
-                    yield(RegionBlock(regionName, x, y, z, idx, region.blockStatePalette[idx]))
-                }
-            }
-        }
-    }
-
-    /**
-     * Helper data class representing a block with coordinate and palette info
-     */
-    data class RegionBlock(
-        val regionName: String,
-        val x: Int,
-        val y: Int,
-        val z: Int,
-        val paletteIndex: Int,
-        val blockStateEntry: Region.BlockStateEntry
-    )
-
     data class Metadata(
         val name: String = "",
         val author: String = "",
@@ -159,9 +120,6 @@ class LitematicaSchematic(
                 position.z + if (size.z < 0) size.z + 1 else 0
             )
 
-        /**
-         * Decodes the bit-packed blockStates into an IntArray of palette indices.
-         */
         fun decodeBlocks(): IntArray {
             val result = IntArray(numBlocks)
             val mask = (1L shl bitsPerBlock) - 1L
@@ -182,10 +140,6 @@ class LitematicaSchematic(
             return result
         }
 
-        /**
-         * Helper to get a block palette index at (x, y, z).
-         * Returns -1 if out of bounds.
-         */
         fun getBlockIndex(x: Int, y: Int, z: Int): Int {
             val (nx, ny, nz) = normalizeCoords(x, y, z)
             if (nx !in 0 until abs(size.x) ||
@@ -198,11 +152,6 @@ class LitematicaSchematic(
             return decoded.getOrElse(index) { -1 }
         }
 
-        /**
-         * Helper to set a block palette index at (x, y, z).
-         * Automatically updates bit-packed blockStates.
-         * Throws if coords out of bounds or blockIndex out of palette range.
-         */
         fun setBlockIndex(x: Int, y: Int, z: Int, blockIndex: Int) {
             val (nx, ny, nz) = normalizeCoords(x, y, z)
             require(nx in 0 until abs(size.x)) { "x out of bounds" }
@@ -235,9 +184,6 @@ class LitematicaSchematic(
             blockStates = mutableStates.toLongArray()
         }
 
-        /**
-         * Normalizes coordinates considering possible negative region dimensions.
-         */
         private fun normalizeCoords(x: Int, y: Int, z: Int): Triple<Int, Int, Int> {
             val nx = if (size.x < 0) size.x + x else x
             val ny = if (size.y < 0) size.y + y else y
@@ -245,9 +191,6 @@ class LitematicaSchematic(
             return Triple(nx, ny, nz)
         }
 
-        /**
-         * Returns a sequence of all blocks with their coordinates and palette indices.
-         */
         fun blocksWithCoordinates() = sequence {
             val decoded = decodeBlocks()
             val sizeX = abs(size.x)
@@ -261,18 +204,12 @@ class LitematicaSchematic(
             }
         }
 
-        /**
-         * Helper to find a tile entity at given block coordinates.
-         */
         fun findTileEntity(x: Int, y: Int, z: Int): NbtCompound? {
             return tileEntities.firstOrNull {
                 it.getInt("x") == x && it.getInt("y") == y && it.getInt("z") == z
             }
         }
 
-        /**
-         * Adds or replaces a tile entity at given position.
-         */
         fun setTileEntity(tileEntityNbt: NbtCompound) {
             val x = tileEntityNbt.getInt("x")
             val y = tileEntityNbt.getInt("y")
@@ -287,23 +224,14 @@ class LitematicaSchematic(
             }
         }
 
-        /**
-         * Removes a tile entity at given block coordinates, returns true if removed.
-         */
         fun removeTileEntity(x: Int, y: Int, z: Int): Boolean {
             return tileEntities.removeIf {
                 it.getInt("x") == x && it.getInt("y") == y && it.getInt("z") == z
             }
         }
 
-        /**
-         * Returns a sequence of all tile entities.
-         */
         fun tileEntitiesSequence() = tileEntities.asSequence()
 
-        /**
-         * Returns a sequence of all entities.
-         */
         fun entitiesSequence() = entities.asSequence()
 
         fun toNbt(): NbtCompound = NbtCompound().apply {
