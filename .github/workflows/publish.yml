@@ -1,6 +1,5 @@
 name: Publish (Manual)
 
-# Manual dispatch by a human. Publish builds & publishes artifacts for each Minecraft matrix entry.
 on:
   workflow_dispatch:
     inputs:
@@ -54,7 +53,29 @@ jobs:
           if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
           ./gradlew --no-daemon clean build --stacktrace ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
 
+      - name: Check if version exists on GitHub Packages
+        id: check_github_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ inputs.mod_version || 'default' }}"
+          PACKAGE="${{ inputs.package_name || 'default-artifact' }}"
+          OWNER="$(echo $GITHUB_REPOSITORY | cut -d/ -f1)"
+          REPO="$(echo $GITHUB_REPOSITORY | cut -d/ -f2)"
+          # Query GitHub Packages API for the package versions
+          RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+                      -H "Accept: application/vnd.github+json" \
+                      "https://api.github.com/orgs/$OWNER/packages/maven/$PACKAGE/versions")
+          if echo "$RESPONSE" | jq -e ".[] | select(.metadata.version.name == \"$VERSION\")" > /dev/null; then
+            echo "Version $VERSION already exists on GitHub Packages, skipping publish."
+            echo "publish_github=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION not found on GitHub Packages, will publish."
+            echo "publish_github=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publish to GitHub Packages (Maven) for minecraft ${{ matrix.minecraft }}
+        if: steps.check_github_version.outputs.publish_github == 'true'
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,7 +84,25 @@ jobs:
           if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
           ./gradlew --no-daemon publish --stacktrace --info ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
 
+      - name: Check if version exists on Modrinth
+        id: check_modrinth_version
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          VERSION="${{ inputs.mod_version || 'default' }}"
+          PROJECT="${{ secrets.MODRINTH_ID }}"
+          MC_VERSION="${{ matrix.minecraft }}"
+          RESPONSE=$(curl -s -H "X-API-Key: $MODRINTH_TOKEN" "https://api.modrinth.com/v2/project/$PROJECT/version")
+          if echo "$RESPONSE" | jq -e ".hits[] | select(.version_number == \"$VERSION\" and (.game_versions[] == \"$MC_VERSION\"))" > /dev/null; then
+            echo "Version $VERSION for MC $MC_VERSION already exists on Modrinth, skipping publish."
+            echo "publish_modrinth=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION for MC $MC_VERSION not found on Modrinth, will publish."
+            echo "publish_modrinth=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publish to Modrinth for minecraft ${{ matrix.minecraft }}
+        if: steps.check_modrinth_version.outputs.publish_modrinth == 'true'
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
@@ -72,5 +111,4 @@ jobs:
           changelog: ${{ github.event.release.body || 'Auto-published via GitHub Actions' }}
           loaders: fabric
           game-versions: ${{ matrix.minecraft }}
-          # Path to jar file produced by gradle build; adjust path to your artifact location
           files: build/libs/yourmod-${{ matrix.minecraft }}-${{ inputs.mod_version || 'default' }}.jar
