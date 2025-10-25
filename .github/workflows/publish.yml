@@ -1,5 +1,6 @@
 name: Publish (Maven + Release)
 
+# This workflow runs when the CI workflow completes and only proceeds when that run concluded successfully.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -57,33 +58,30 @@ jobs:
 
       - name: Compute release version (strip leading 'v')
         run: |
-          # Remove leading 'v' if present
           tag="${PUBLISH_TAG}"
           release="${tag#v}"
           echo "RELEASE_VERSION=$release" >> $GITHUB_ENV
           echo "Computed RELEASE_VERSION=$release from tag $tag"
 
-      - name: Set up JDK 17 and cache Gradle
+      - name: Set up JDK 21 and cache Gradle
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Build (assemble and run tests)
-        run: |
-          ./gradlew --no-daemon clean build --stacktrace -PreleaseVersion=${{ env.RELEASE_VERSION }}
+        run: ./gradlew --no-daemon clean build --stacktrace -PreleaseVersion=${{ env.RELEASE_VERSION }}
 
       - name: Publish to GitHub Packages (Maven)
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
-        run: |
-          ./gradlew --no-daemon publish --stacktrace -PreleaseVersion=${RELEASE_VERSION}
+        run: ./gradlew --no-daemon publish --stacktrace -PreleaseVersion=${RELEASE_VERSION}
 
       - name: Create GitHub Release and upload built jars
         id: ghrelease

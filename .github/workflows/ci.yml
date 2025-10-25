@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - '**'
+    tags:
+      - 'v*'     # run CI for tag pushes so publish can react to the CI workflow_run
   pull_request:
 
 permissions:
@@ -18,15 +20,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17 and cache Gradle
+      - name: Set up JDK 21 and cache Gradle
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Run checks (build + tests)
+      - name: Run checks (compile + tests)
         run: ./gradlew --no-daemon check --stacktrace
