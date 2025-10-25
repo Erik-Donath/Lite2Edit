@@ -75,11 +75,11 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags --prune
 
-      - name: Set up JDK 17 and cache Gradle
+      - name: Set up JDK 21 and cache Gradle
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Make gradlew executable
