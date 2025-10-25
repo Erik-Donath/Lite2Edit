@@ -1,6 +1,6 @@
 name: Publish (Manual)
 
-# Manual dispatch by a human. Publish builds & publishes artifacts for each minecraft matrix entry.
+# Manual dispatch by a human. Publish builds & publishes artifacts for each Minecraft matrix entry.
 on:
   workflow_dispatch:
     inputs:
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        minecraft: ["1.20.4"] # extend when you want to publish for additional MC versions
+        minecraft: ["1.20.4"]
 
     steps:
       - name: Checkout (full history)
@@ -61,5 +61,16 @@ jobs:
         run: |
           EXTRA=""
           if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
-          # Use --info to surface useful HTTP/logging details if publish fails
           ./gradlew --no-daemon publish --stacktrace --info ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
+
+      - name: Publish to Modrinth for minecraft ${{ matrix.minecraft }}
+        uses: cloudnode-pro/modrinth-publish@v2
+        with:
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          project: ${{ secrets.MODRINTH_ID }}
+          version: ${{ inputs.mod_version || 'default' }}
+          changelog: ${{ github.event.release.body || 'Auto-published via GitHub Actions' }}
+          loaders: fabric
+          game-versions: ${{ matrix.minecraft }}
+          # Path to jar file produced by gradle build; adjust path to your artifact location
+          files: build/libs/yourmod-${{ matrix.minecraft }}-${{ inputs.mod_version || 'default' }}.jar
