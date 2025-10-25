@@ -1,15 +1,14 @@
-name: Publish (Manual, requires CI success)
+name: Publish (Manual)
 
-# Manual dispatch by a human. Before publishing we verify that the CI workflow for master
-# has a successful run for the commit being published (or the latest master run).
+# Manual dispatch by a human. Publish builds & publishes artifacts for each minecraft matrix entry.
 on:
   workflow_dispatch:
     inputs:
-      release_version:
-        description: 'Release version to publish (e.g. 1.2.3)'
-        required: true
-      commit_sha:
-        description: '(optional) commit SHA to validate CI succeeded for. If omitted, the latest CI run on master is checked.'
+      mod_version:
+        description: 'Optional: override mod_version for this publish (if omitted, gradle.properties mod_version is used)'
+        required: false
+      package_name:
+        description: 'Optional: package/artifactId name if you changed it (defaults to computed artifactId)'
         required: false
 
 permissions:
@@ -23,59 +22,15 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      RELEASE_VERSION: ${{ inputs.release_version }}
+    strategy:
+      matrix:
+        minecraft: ["1.20.4"] # extend when you want to publish for additional MC versions
 
     steps:
-      - name: Ensure recent CI run for master succeeded
-        id: check_ci
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // In actions/github-script the workflow_dispatch inputs are available on the
-            // event payload (context.payload.inputs). 'inputs' is not a global variable.
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const workflowFile = 'ci.yml'; // workflow filename for CI
-            const commitSha = (context.payload.inputs && context.payload.inputs.commit_sha) || '';
-            // List workflow runs for the CI workflow on branch master
-            const runsResp = await github.rest.actions.listWorkflowRuns({
-              owner,
-              repo,
-              workflow_id: workflowFile,
-              branch: 'master',
-              per_page: 20
-            });
-            const runs = runsResp.data.workflow_runs || [];
-            if (runs.length === 0) {
-              core.setFailed('No CI workflow runs found for master.');
-              return;
-            }
-            let matchedRun = null;
-            if (commitSha) {
-              matchedRun = runs.find(r => r.head_sha === commitSha);
-              if (!matchedRun) {
-                core.setFailed(`No CI run found for commit ${commitSha} on master.`);
-                return;
-              }
-            } else {
-              // pick the latest run on master
-              matchedRun = runs[0];
-            }
-            core.info(`Found CI run id=${matchedRun.id} head_sha=${matchedRun.head_sha} conclusion=${matchedRun.conclusion}`);
-            if (matchedRun.conclusion !== 'success') {
-              core.setFailed(`CI run for commit ${matchedRun.head_sha} did not succeed (conclusion=${matchedRun.conclusion}). Aborting publish.`);
-              return;
-            }
-            core.setOutput('ci_run_id', matchedRun.id);
-
-      - name: Checkout
+      - name: Checkout (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Fetch tags
-        run: git fetch --tags --prune
 
       - name: Set up JDK 21 and cache Gradle
         uses: actions/setup-java@v4
@@ -87,15 +42,24 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Print resolved version (sanity check)
-        run: ./gradlew -PreleaseVersion=${{ env.RELEASE_VERSION }} printVersion
+      - name: Print resolved coordinates (sanity)
+        run: |
+          EXTRA=""
+          if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
+          ./gradlew printVersion ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
 
-      - name: Build (assemble and run tests)
-        run: ./gradlew --no-daemon clean build --stacktrace -PreleaseVersion=${{ env.RELEASE_VERSION }}
+      - name: Build (assemble and run tests) for minecraft ${{ matrix.minecraft }}
+        run: |
+          EXTRA=""
+          if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
+          ./gradlew --no-daemon clean build --stacktrace ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}
 
-      - name: Publish to GitHub Packages (Maven)
+      - name: Publish to GitHub Packages (Maven) for minecraft ${{ matrix.minecraft }}
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
-        run: ./gradlew --no-daemon publish --stacktrace -PreleaseVersion=${RELEASE_VERSION}
+        run: |
+          EXTRA=""
+          if [ -n "${{ inputs.mod_version }}" ]; then EXTRA="-Pmod_version=${{ inputs.mod_version }}"; fi
+          # Use --info to surface useful HTTP/logging details if publish fails
+          ./gradlew --no-daemon publish --stacktrace --info ${EXTRA} -Pminecraft_version=${{ matrix.minecraft }}

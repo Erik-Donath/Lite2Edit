@@ -1,6 +1,6 @@
 name: CI
 
-# Run CI on every commit pushed to master and on pull requests targeting master.
+# Run CI on every commit to master and on PRs targeting master.
 on:
   push:
     branches:
@@ -16,6 +16,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        minecraft: ["1.20.4"] # add more Minecraft versions here if/when desired
 
     steps:
       - name: Checkout
@@ -31,12 +34,10 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Sanity print Gradle / Java versions
+      - name: Print versions (sanity)
         run: |
           java -version
           ./gradlew --version
 
-      - name: Run checks (compile + tests)
-        # This verifies the commit is functional (compiles and tests pass).
-        # If you want to test against a different Minecraft version in CI, set the MINECRAFT_VERSION env var here or pass -PminecraftVersion.
-        run: ./gradlew --no-daemon clean check --stacktrace
+      - name: Run checks (compile + tests) for minecraft ${{ matrix.minecraft }}
+        run: ./gradlew --no-daemon clean check --stacktrace -Pminecraft_version=${{ matrix.minecraft }}

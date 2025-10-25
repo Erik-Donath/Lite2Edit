@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.gradle.api.GradleException
+import java.util.Locale
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
     kotlin("jvm") version "2.2.20"
@@ -8,65 +10,62 @@ plugins {
     id("maven-publish")
 }
 
+// Use mod_version from gradle.properties as the published version
+version = (findProperty("mod_version") as String?) ?: "0.1.0"
+group = (findProperty("maven_group") as String?) ?: "de.erikd"
+base.archivesName.set((findProperty("archives_base_name") as String?) ?: project.name)
+
+// default fallback for MC if nothing provided
+val defaultMc = (findProperty("default_minecraft_version") as String?) ?: "1.20.4"
+
+// IMPORTANT: Fabric/Loom expects the legacy project property minecraft_version to exist.
+// Provide the value to the build logic by preferring the classic property name first.
+// This will be satisfied by gradle.properties or by passing -Pminecraft_version=<version> on the CLI.
 //
-// Version / group handling
-// - Use -PreleaseVersion=... (Gradle property) first
-// - Then READ environment variable RELEASE_VERSION (workflow sets this)
-// - Then fall back to mod_version from gradle.properties
-//
-val defaultModVersion = (findProperty("mod_version") as String?) ?: "0.1.0"
-val defaultGroup = (findProperty("maven_group") as String?) ?: "com.erikdonath"
+// For convenience we also accept -PminecraftVersion (camelCase) and MINECRAFT_VERSION env var.
+val minecraftVersion = when {
+    project.hasProperty("minecraft_version") -> project.property("minecraft_version").toString()
+    project.hasProperty("minecraftVersion") -> project.property("minecraftVersion").toString()
+    System.getenv("MINECRAFT_VERSION") != null -> System.getenv("MINECRAFT_VERSION")
+    else -> defaultMc
+}.trim()
 
-// read -PreleaseVersion if provided
-val releaseVersionProp = if (project.hasProperty("releaseVersion")) project.property("releaseVersion") as String else null
-val releaseVersionEnv = System.getenv("RELEASE_VERSION")
+// WorldEdit selection: default to latest non-SNAPSHOT release. Override with -PworldeditVersion or WORLDEDIT_VERSION
+val defaultWorldEdit = (findProperty("worldedit_version") as String?) ?: "latest.release"
+val worldeditVersion = when {
+    project.hasProperty("worldeditVersion") -> project.property("worldeditVersion").toString()
+    System.getenv("WORLDEDIT_VERSION") != null -> System.getenv("WORLDEDIT_VERSION")
+    else -> defaultWorldEdit
+}.trim()
 
-version = releaseVersionProp?.takeIf { it.isNotBlank() } ?: releaseVersionEnv?.takeIf { it.isNotBlank() } ?: defaultModVersion
-group = (findProperty("maven_group") as String?) ?: defaultGroup
-
-base {
-    archivesName.set((findProperty("archives_base_name") as String?) ?: project.name)
-}
-
-// Target Java version for compilation and Loom toolchain
+// Toolchain target
 val targetJavaVersion = 17
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     withSourcesJar()
 }
 
-// Read Minecraft version and WorldEdit version in a flexible way:
-// 1) -PminecraftVersion / -PworldeditVersion (Gradle properties passed on CLI)
-// 2) Environment variables MINECRAFT_VERSION / WORLDEDIT_VERSION (CI)
-// 3) gradle.properties defaults (minecraft_version / worldedit_version)
-// 4) sensible fallback
-val defaultMinecraft = (findProperty("minecraft_version") as String?) ?: "1.20.4"
-val minecraftVersionProp = if (project.hasProperty("minecraftVersion")) project.property("minecraftVersion") as String else null
-val minecraftVersionEnv = System.getenv("MINECRAFT_VERSION")
-val minecraftVersion = (minecraftVersionProp ?: minecraftVersionEnv ?: defaultMinecraft).trim()
-
-// For WorldEdit pick version from -P or env or gradle.properties; fallback to dynamic "7.+"
-// Using "7.+" allows Gradle to pick the latest 7.x WorldEdit compatible artifact.
-// You can override with -PworldeditVersion or WORLDEDIT_VERSION env var if needed.
-val defaultWorldEdit = (findProperty("worldedit_version") as String?) ?: "7.+"
-val worldeditVersionProp = if (project.hasProperty("worldeditVersion")) project.property("worldeditVersion") as String else null
-val worldeditVersionEnv = System.getenv("WORLDEDIT_VERSION")
-val worldeditVersion = (worldeditVersionProp ?: worldeditVersionEnv ?: defaultWorldEdit).trim()
+// artifactId: <archives_base_name>-fabric-<mcVersion> (lowercased to avoid GitHub Packages normalization issues)
+val archivesBase = (findProperty("archives_base_name") as String?) ?: project.name
+val artifactIdFinal = "${archivesBase}-fabric-${minecraftVersion}".lowercase(Locale.ROOT)
 
 repositories {
     mavenCentral()
     maven { url = uri("https://maven.enginehub.org/repo/") }
+
+    // Snapshot repos (allow resolution of transitive SNAPSHOT dependencies if necessary)
+    maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots/") }
+    maven { url = uri("https://maven.enginehub.org/snapshots/") }
 }
 
 dependencies {
-    // To change other versions, update gradle.properties or pass -P overrides.
+    // Use the classic property name value — this ensures Loom sees the intended Minecraft artifact.
     minecraft("com.mojang:minecraft:$minecraftVersion")
     mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
 
-    // WorldEdit: artifact name includes the Minecraft version (same pattern as before).
-    // Version is dynamic by default (7.+), or can be overridden by -PworldeditVersion or env var WORLDEDIT_VERSION.
+    // WorldEdit artifact that matches the MC version
     modImplementation("com.sk89q.worldedit:worldedit-fabric-mc${minecraftVersion}:$worldeditVersion")
 }
 
@@ -100,33 +99,77 @@ tasks.withType<KotlinCompile>().configureEach {
 
 tasks.jar {
     from("LICENSE") {
-        rename { "${it}_${project.base.archivesName}" }
+        rename { "${it}_${project.base.archivesName.get()}" }
     }
 }
 
-// small helper task so CI / humans can print version before publishing (helps debugging)
+// Print which WorldEdit artifact gets selected for the chosen Minecraft version
+tasks.register("printWorldEditVersion") {
+    group = "help"
+    description = "Resolve and print the selected WorldEdit artifact/version for the configured minecraftVersion"
+    doLast {
+        val depNotation = "com.sk89q.worldedit:worldedit-fabric-mc${minecraftVersion}:$worldeditVersion"
+        println("Requested dependency notation: $depNotation")
+        val detached = configurations.detachedConfiguration(dependencies.create(depNotation))
+        try {
+            detached.resolve()
+            val resolved = detached.resolvedConfiguration.resolvedArtifacts
+            if (resolved.isEmpty()) {
+                println("No artifacts were resolved for $depNotation (possible POM-only module).")
+                println("Run locally for details:")
+                println("  ./gradlew dependencyInsight --dependency com.sk89q.worldedit --configuration runtimeClasspath --info")
+            } else {
+                println("Resolved artifacts:")
+                resolved.forEach {
+                    println(" - ${it.moduleVersion.id} -> file=${it.file.name}")
+                }
+            }
+        } catch (e: Exception) {
+            println("Resolution failed: ${e.message}")
+            println("Run with --info to see repository lookups and the selected version.")
+            throw e
+        }
+    }
+}
+
 tasks.register("printVersion") {
     group = "help"
-    description = "Print resolved project.version and resolved build inputs"
+    description = "Print resolved project.version, artifactId, and resolved inputs"
     doLast {
-        println("Resolved project.version = '${project.version}'")
-        println("Resolved minecraftVersion = '$minecraftVersion'")
-        println("Resolved worldeditVersion = '$worldeditVersion'")
-        println("Resolved group = '$group'")
-        println("Resolved archivesBaseName = '${project.base.archivesName.get()}'")
+        println("project.group = '$group'")
+        println("project.version = '${project.version}'")
+        println("artifactId (computed) = '$artifactIdFinal'")
+        println("minecraftVersion (resolved) = '$minecraftVersion'")
+        println("worldeditVersion(request) = '$worldeditVersion'")
     }
 }
 
-// Publishing configuration (unchanged except to use the same environment/property hooks for credentials)
+// Validate publish inputs early
+tasks.register("validatePublish") {
+    doLast {
+        if (project.version.toString().isBlank()) {
+            throw GradleException("Cannot publish: project.version is empty. Set mod_version in gradle.properties.")
+        }
+        if (artifactIdFinal != artifactIdFinal.lowercase(Locale.ROOT)) {
+            throw GradleException("Computed artifactId must be lowercase for GitHub Packages. Computed: '$artifactIdFinal'")
+        }
+        println("Publishing coordinates: ${project.group}:$artifactIdFinal:${project.version}")
+    }
+}
+
+tasks.withType(PublishToMavenRepository::class).configureEach {
+    dependsOn("validatePublish")
+}
+
+// Publishing
 val githubPackagesOwner = (findProperty("github_packages_owner") as String?) ?: "Erik-Donath"
 val githubPackagesRepo = (findProperty("github_packages_repo") as String?) ?: "Lite2Edit"
 
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = (findProperty("archives_base_name") as String?) ?: project.name
+            artifactId = artifactIdFinal
 
-            // Prefer Loom remapped outputs if available
             val remapJar = tasks.findByName("remapJar")
             val remapSourcesJar = tasks.findByName("remapSourcesJar")
             val sourcesJar = tasks.findByName("sourcesJar")
@@ -140,13 +183,31 @@ publishing {
                 try {
                     from(components["java"])
                 } catch (_: Exception) {
-                    // no java component: nothing to do
+                    // no java component
                 }
             }
 
             when {
                 remapSourcesJar != null -> artifact(remapSourcesJar)
                 sourcesJar != null -> artifact(sourcesJar)
+            }
+
+            pom {
+                name.set(artifactIdFinal)
+                description.set("Lite2Edit - helper for Litematica schematics and WorldEdit")
+                url.set("https://github.com/$githubPackagesOwner/$githubPackagesRepo")
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("erikdonath")
+                        name.set("Erik Donath")
+                    }
+                }
             }
         }
     }
