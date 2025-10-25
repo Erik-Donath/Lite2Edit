@@ -9,16 +9,17 @@ plugins {
 
 //
 // Version / group handling
-// - Use mod_version / maven_group from gradle.properties by default (existing), but allow
-//   overriding the published version via -PreleaseVersion=... or the RELEASE_VERSION env var
-//   (the publish workflow will set RELEASE_VERSION from the tag).
+// - Use -PreleaseVersion=... (Gradle property) first
+// - Then READ environment variable RELEASE_VERSION (workflow sets this)
+// - Then fall back to mod_version from gradle.properties
 //
 val defaultModVersion = (findProperty("mod_version") as String?) ?: "0.1.0"
 val defaultGroup = (findProperty("maven_group") as String?) ?: "com.erikdonath"
 
-// releaseVersion property takes precedence (use -PreleaseVersion=... from workflow), then env, then default
-val releaseVersionProp = (findProperty("releaseVersion") as String?)
+// read -PreleaseVersion if provided
+val releaseVersionProp = if (project.hasProperty("releaseVersion")) project.property("releaseVersion") as String else null
 val releaseVersionEnv = System.getenv("RELEASE_VERSION")
+
 version = releaseVersionProp ?: releaseVersionEnv ?: defaultModVersion
 group = (findProperty("maven_group") as String?) ?: defaultGroup
 
@@ -81,9 +82,16 @@ tasks.jar {
     }
 }
 
+// small helper task so CI can print version before publishing (helps debugging)
+tasks.register("printVersion") {
+    group = "help"
+    description = "Print resolved project.version"
+    doLast {
+        println("Resolved project.version = '${project.version}'")
+    }
+}
+
 // Publishing configuration
-// - Publish the remapped mod jar if Loom provides remapJar/remapSourcesJar; otherwise publish the standard jar/sourcesJar.
-// - Credentials are read from env (GITHUB_ACTOR/GITHUB_TOKEN) or gradle properties (gpr.user/gpr.key).
 val githubPackagesOwner = (findProperty("github_packages_owner") as String?) ?: "Erik-Donath"
 val githubPackagesRepo = (findProperty("github_packages_repo") as String?) ?: "Lite2Edit"
 
@@ -99,26 +107,20 @@ publishing {
             val jarTask = tasks.findByName("jar")
 
             if (remapJar != null) {
-                // publish remapped jar (recommended for Fabric mods)
                 artifact(remapJar)
             } else if (jarTask != null) {
                 from(components["java"])
             } else {
-                // fallback: try to publish whatever "java" component provides
                 try {
                     from(components["java"])
                 } catch (_: Exception) {
-                    // nothing to do; user can customize if their layout is different
+                    // no java component: nothing to do
                 }
             }
 
-            // publish a sources jar if available
             when {
                 remapSourcesJar != null -> artifact(remapSourcesJar)
                 sourcesJar != null -> artifact(sourcesJar)
-                else -> {
-                    // withSourcesJar() above likely created 'sourcesJar'; if not present, skip silently
-                }
             }
         }
     }

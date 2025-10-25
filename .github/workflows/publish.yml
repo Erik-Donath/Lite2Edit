@@ -1,6 +1,6 @@
 name: Publish (Maven + Release)
 
-# This workflow runs when the CI workflow completes and only proceeds when that run concluded successfully.
+# Runs after CI completes successfully. The CI workflow must also run on tag pushes.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -73,6 +73,9 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Print resolved version (sanity check)
+        run: ./gradlew -PreleaseVersion=${{ env.RELEASE_VERSION }} printVersion
+
       - name: Build (assemble and run tests)
         run: ./gradlew --no-daemon clean build --stacktrace -PreleaseVersion=${{ env.RELEASE_VERSION }}
 
@@ -83,12 +86,12 @@ jobs:
           RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
         run: ./gradlew --no-daemon publish --stacktrace -PreleaseVersion=${RELEASE_VERSION}
 
-      - name: Create GitHub Release and upload built jars
-        id: ghrelease
-        uses: softprops/action-gh-release@v1
-        with:
-          name: ${{ env.PUBLISH_TAG }}
-          tag_name: ${{ env.PUBLISH_TAG }}
-          files: build/libs/*.jar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Create GitHub Release and upload built jars
+#        id: ghrelease
+#        uses: softprops/action-gh-release@v1
+#        with:
+#          name: ${{ env.PUBLISH_TAG }}
+#          tag_name: ${{ env.PUBLISH_TAG }}
+#          files: build/libs/*.jar
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
