@@ -12,7 +12,7 @@ Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic fi
 
 ---
 
-## How to use (short)
+## How to use
 
 1. Put the Lite2Edit mod JAR into your Fabric `mods/` folder.
 2. Make sure [Fabric Loader](https://fabricmc.net/), [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin), and [WorldEdit (Fabric build)](https://modrinth.com/plugin/worldedit) are installed.
@@ -28,7 +28,7 @@ git clone https://github.com/Erik-Donath/Lite2Edit.git
 
 ---
 
-## How it works (detailed)
+## How it works
 
 This section explains what the mod does behind the scenes:
 
