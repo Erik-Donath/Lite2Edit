@@ -1,27 +1,72 @@
-name: Publish (Maven + Release)
+name: Publish (Manual, requires CI success)
 
-# Runs after CI completes successfully. The CI workflow must also run on tag pushes.
+# Manual dispatch by a human. Before publishing we verify that the CI workflow for master
+# has a successful run for the commit being published (or the latest master run).
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version to publish (e.g. 1.2.3)'
+        required: true
+      commit_sha:
+        description: '(optional) commit SHA to validate CI succeeded for. If omitted, the latest CI run on master is checked.'
+        required: false
 
 permissions:
   contents: write
   packages: write
 
 concurrency:
-  group: publish-${{ github.repository }}-${{ github.event.workflow_run.id || github.run_id }}
+  group: publish-${{ github.repository }}-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ inputs.release_version }}
 
     steps:
+      - name: Ensure recent CI run for master succeeded
+        id: check_ci
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflowFile = 'ci.yml'; // workflow filename for CI
+            const commitSha = inputs.commit_sha || '';
+            // List workflow runs for the CI workflow on branch master
+            const runsResp = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: workflowFile,
+              branch: 'master',
+              per_page: 20
+            });
+            const runs = runsResp.data.workflow_runs || [];
+            if (runs.length === 0) {
+              core.setFailed('No CI workflow runs found for master.');
+              return;
+            }
+            let matchedRun = null;
+            if (commitSha) {
+              matchedRun = runs.find(r => r.head_sha === commitSha);
+              if (!matchedRun) {
+                core.setFailed(`No CI run found for commit ${commitSha} on master.`);
+                return;
+              }
+            } else {
+              // pick the latest run on master
+              matchedRun = runs[0];
+            }
+            core.info(`Found CI run id=${matchedRun.id} head_sha=${matchedRun.head_sha} conclusion=${matchedRun.conclusion}`);
+            if (matchedRun.conclusion !== 'success') {
+              core.setFailed(`CI run for commit ${matchedRun.head_sha} did not succeed (conclusion=${matchedRun.conclusion}). Aborting publish.`);
+              return;
+            }
+            core.setOutput('ci_run_id', matchedRun.id);
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -30,44 +75,11 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags --prune
 
-      - name: Detect tag(s) pointing to current commit
-        id: tagcheck
-        run: |
-          tags=$(git tag --points-at "${GITHUB_SHA}" || true)
-          echo "Found tags: $tags"
-          selected=""
-          for t in $tags; do
-            if [[ $t =~ ^v[0-9] ]]; then
-              selected="$t"
-              break
-            fi
-          done
-          if [[ -z "$selected" ]]; then
-            echo "No semantic tag (v*) pointing at ${GITHUB_SHA}. Exiting."
-            echo "PUBLISH_TAG=" >> $GITHUB_ENV
-            exit 0
-          fi
-          echo "PUBLISH_TAG=$selected" >> $GITHUB_ENV
-          echo "Detected publish tag: $selected"
-
-      - name: Exit if not a tag run
-        if: ${{ env.PUBLISH_TAG == '' }}
-        run: |
-          echo "This workflow only publishes artifacts for tag pushes (v*). Nothing to do."
-          exit 0
-
-      - name: Compute release version (strip leading 'v')
-        run: |
-          tag="${PUBLISH_TAG}"
-          release="${tag#v}"
-          echo "RELEASE_VERSION=$release" >> $GITHUB_ENV
-          echo "Computed RELEASE_VERSION=$release from tag $tag"
-
-      - name: Set up JDK 21 and cache Gradle
+      - name: Set up JDK 17 and cache Gradle
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
           cache: 'gradle'
 
       - name: Make gradlew executable
@@ -85,13 +97,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
         run: ./gradlew --no-daemon publish --stacktrace -PreleaseVersion=${RELEASE_VERSION}
-
-#      - name: Create GitHub Release and upload built jars
-#        id: ghrelease
-#        uses: softprops/action-gh-release@v1
-#        with:
-#          name: ${{ env.PUBLISH_TAG }}
-#          tag_name: ${{ env.PUBLISH_TAG }}
-#          files: build/libs/*.jar
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
