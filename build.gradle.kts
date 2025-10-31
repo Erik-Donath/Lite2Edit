@@ -89,7 +89,7 @@ publishing {
             from(components["java"])
             pom {
                 name.set(project.property("archives_base_name") as String)
-                description.set("Fabric mod integrating WorldEdit Core for Minecraft $minecraftVersion")
+                description.set("A World Edit Plugin that allows you to load litemetica scematics.")
                 url.set("https://github.com/erikd/lite2edit")
                 licenses {
                     license {
