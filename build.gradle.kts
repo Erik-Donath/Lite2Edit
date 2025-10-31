@@ -1,11 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.gradle.api.GradleException
-import java.util.Locale
-import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.2.21"
     id("fabric-loom") version "1.11.8"
     id("maven-publish")
 }
@@ -34,7 +31,7 @@ val worldeditVersion = project.property("worldedit_version") as String? ?: "7.3.
 dependencies {
     // Use the classic property name value — this ensures Loom sees the intended Minecraft artifact.
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
+    mappings(loom.officialMojangMappings())  // Changed from Yarn to official mappings
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
     modImplementation("com.sk89q.worldedit:worldedit-core:${worldeditVersion}")
