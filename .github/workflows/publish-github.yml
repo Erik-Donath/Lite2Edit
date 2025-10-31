@@ -21,6 +21,10 @@ jobs:
       contents: read
       packages: write
 
+    strategy:
+      matrix:
+        minecraft_version: ["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"]
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,14 +55,17 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing version: $VERSION"
+          echo "Publishing version: $VERSION for MC ${{ matrix.minecraft_version }}"
 
-      - name: Update version in gradle.properties
+      - name: Update version and artifact configuration
         run: |
+          # Update version
           sed -i "s/mod_version=.*/mod_version=${{ env.VERSION }}/" gradle.properties
+          # Update archives_base_name to be version-specific and lowercase
+          sed -i "s/archives_base_name=.*/archives_base_name=lite2edit-mc${{ matrix.minecraft_version }}/" gradle.properties
 
-      - name: Build and publish to GitHub Packages
-        run: ./gradlew publish
+      - name: Build and publish to GitHub Packages for MC ${{ matrix.minecraft_version }}
+        run: ./gradlew publish "-Pminecraft_version=${{ matrix.minecraft_version }}"
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
