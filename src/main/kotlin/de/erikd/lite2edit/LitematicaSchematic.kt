@@ -1,7 +1,9 @@
 package de.erikd.lite2edit
 
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.nbt.NbtList
+import net.kyori.adventure.nbt.BinaryTagTypes
+import net.kyori.adventure.nbt.CompoundBinaryTag
+import net.kyori.adventure.nbt.ListBinaryTag
+
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -12,22 +14,22 @@ import kotlin.math.max
  * ├─ MinecraftDataVersion: Int (e.g., 2975 for 1.20.4)
  * ├─ Version: Int (Litematica format version)
  * ├─ Metadata: Compound
- * │  ├─ Name: String (schematic name)
- * │  ├─ Author: String
- * │  ├─ Description: String
- * │  └─ TimeCreated/Modified: Long
+ * │ ├─ Name: String (schematic name)
+ * │ ├─ Author: String
+ * │ ├─ Description: String
+ * │ └─ TimeCreated/Modified: Long
  * └─ Regions: Compound (can contain multiple named regions)
- *    └─ <RegionName>: Compound
+ *    └─ <regionName>: Compound
  *       ├─ Position: Compound {x, y, z} (offset in world)
  *       ├─ Size: Compound {x, y, z} (dimensions, can be negative!)
- *       ├─ BlockStatePalette: List<Compound>
+ *       ├─ BlockStatePalette: List
  *       │  └─ Entry: Compound
  *       │     ├─ Name: String (e.g., "minecraft:stone")
  *       │     └─ Properties: Compound (optional, e.g., {facing: "north"})
  *       ├─ BlockStates: LongArray (bit-packed palette indices)
- *       ├─ TileEntities: List<Compound> (chests, signs, etc.)
+ *       ├─ TileEntities: List (chests, signs, etc.)
  *       │  └─ Entry: Compound {x, y, z, id, ...custom NBT}
- *       └─ Entities: List<Compound> (mobs, armor stands, etc.)
+ *       └─ Entities: List (mobs, armor stands, etc.)
  *          └─ Entry: Compound {Pos, id, ...custom NBT}
  *
  * Block Storage Format:
@@ -37,32 +39,45 @@ import kotlin.math.max
  * - Iteration order: X (inner) -> Z -> Y (outer)
  * - Negative dimensions mean the region extends in negative direction
  */
-
 class LitematicaSchematic(
     val minecraftDataVersion: Int = 0,
     val version: Int = 0,
     val metadata: Metadata = Metadata(),
     val regions: Map<String, Region> = emptyMap()
 ) {
-    constructor(nbt: NbtCompound) : this(
+
+    constructor(nbt: CompoundBinaryTag) : this(
         minecraftDataVersion = nbt.getInt("MinecraftDataVersion"),
         version = nbt.getInt("Version"),
         metadata = Metadata(nbt.getCompound("Metadata")),
-        regions = nbt.getCompound("Regions").keys.associateWith {
-            Region(nbt.getCompound("Regions").getCompound(it))
-        }
+        regions = parseRegions(nbt.getCompound("Regions"))
     )
 
-    fun toNbt(): NbtCompound = NbtCompound().apply {
+    private companion object {
+        private fun parseRegions(regionsTag: CompoundBinaryTag): Map<String, Region> {
+            val keys = regionsTag.keySet()
+            val out = LinkedHashMap<String, Region>(keys.size)
+            for (key in keys) {
+                out[key] = Region(regionsTag.getCompound(key))
+            }
+            return out
+        }
+
+        private fun getCompoundList(nbt: CompoundBinaryTag, key: String): ListBinaryTag {
+            return nbt.getList(key, BinaryTagTypes.COMPOUND)
+        }
+    }
+
+    fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {
         putInt("MinecraftDataVersion", minecraftDataVersion)
         putInt("Version", version)
         put("Metadata", metadata.toNbt())
-        val regionsCompound = NbtCompound()
+        val regionsBuilder = CompoundBinaryTag.builder()
         regions.forEach { (name, region) ->
-            regionsCompound.put(name, region.toNbt())
+            regionsBuilder.put(name, region.toNbt())
         }
-        put("Regions", regionsCompound)
-    }
+        put("Regions", regionsBuilder.build())
+    }.build()
 
     data class Metadata(
         val name: String = "",
@@ -71,7 +86,7 @@ class LitematicaSchematic(
         val timeCreated: Long = 0L,
         val timeModified: Long = 0L
     ) {
-        constructor(nbt: NbtCompound) : this(
+        constructor(nbt: CompoundBinaryTag) : this(
             name = nbt.getString("Name"),
             author = nbt.getString("Author"),
             description = nbt.getString("Description"),
@@ -79,13 +94,13 @@ class LitematicaSchematic(
             timeModified = nbt.getLong("TimeModified")
         )
 
-        fun toNbt(): NbtCompound = NbtCompound().apply {
+        fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {
             putString("Name", name)
             putString("Author", author)
             putString("Description", description)
             putLong("TimeCreated", timeCreated)
             putLong("TimeModified", timeModified)
-        }
+        }.build()
     }
 
     data class Region(
@@ -93,17 +108,38 @@ class LitematicaSchematic(
         val size: Vec3 = Vec3(),
         val blockStatePalette: List<BlockStateEntry> = emptyList(),
         var blockStates: LongArray = longArrayOf(),
-        val tileEntities: MutableList<NbtCompound> = mutableListOf(),
-        val entities: MutableList<NbtCompound> = mutableListOf()
+        val tileEntities: MutableList<CompoundBinaryTag> = mutableListOf(),
+        val entities: MutableList<CompoundBinaryTag> = mutableListOf()
     ) {
-        constructor(nbt: NbtCompound) : this(
+
+        constructor(nbt: CompoundBinaryTag) : this(
             position = Vec3(nbt.getCompound("Position")),
             size = Vec3(nbt.getCompound("Size")),
-            blockStatePalette = nbt.getList("BlockStatePalette", 10).map { BlockStateEntry(it as NbtCompound) },
+            blockStatePalette = parsePalette(nbt),
             blockStates = nbt.getLongArray("BlockStates"),
-            tileEntities = nbt.getList("TileEntities", 10).mapTo(mutableListOf()) { it as NbtCompound },
-            entities = nbt.getList("Entities", 10).mapTo(mutableListOf()) { it as NbtCompound }
+            tileEntities = parseCompoundList(nbt, "TileEntities"),
+            entities = parseCompoundList(nbt, "Entities")
         )
+
+        private companion object {
+            private fun parsePalette(nbt: CompoundBinaryTag): List<BlockStateEntry> {
+                val lb: ListBinaryTag = nbt.getList("BlockStatePalette", BinaryTagTypes.COMPOUND)
+                val out = ArrayList<BlockStateEntry>(lb.size())
+                for (i in 0 until lb.size()) {
+                    out.add(BlockStateEntry(lb.getCompound(i)))
+                }
+                return out
+            }
+
+            private fun parseCompoundList(nbt: CompoundBinaryTag, key: String): MutableList<CompoundBinaryTag> {
+                val lb: ListBinaryTag = nbt.getList(key, BinaryTagTypes.COMPOUND)
+                val out = ArrayList<CompoundBinaryTag>(lb.size())
+                for (i in 0 until lb.size()) {
+                    out.add(lb.getCompound(i))
+                }
+                return out
+            }
+        }
 
         private val bitsPerBlock: Int by lazy {
             max(2, 32 - Integer.numberOfLeadingZeros(blockStatePalette.size - 1))
@@ -146,7 +182,6 @@ class LitematicaSchematic(
                 ny !in 0 until abs(size.y) ||
                 nz !in 0 until abs(size.z)
             ) return -1
-
             val index = ny * abs(size.x) * abs(size.z) + nz * abs(size.x) + nx
             val decoded = decodeBlocks()
             return decoded.getOrElse(index) { -1 }
@@ -160,6 +195,7 @@ class LitematicaSchematic(
             require(blockIndex in blockStatePalette.indices) { "blockIndex out of palette range" }
 
             val index = ny * abs(size.x) * abs(size.z) + nz * abs(size.x) + nx
+
             val mask = (1L shl bitsPerBlock) - 1L
             val bitOffset = index * bitsPerBlock
             val longIndex = bitOffset / 64
@@ -178,7 +214,8 @@ class LitematicaSchematic(
                 val nextIndex = longIndex + 1
                 val nextCurrent = mutableStates.getOrElse(nextIndex) { 0L }
                 val clearedNext = nextCurrent and ((1L shl overlapBits) - 1).inv()
-                mutableStates[nextIndex] = clearedNext or ((blockIndex.toLong() shr (bitsPerBlock - overlapBits)) and ((1L shl overlapBits) - 1))
+                mutableStates[nextIndex] =
+                    clearedNext or ((blockIndex.toLong() shr (bitsPerBlock - overlapBits)) and ((1L shl overlapBits) - 1))
             }
 
             blockStates = mutableStates.toLongArray()
@@ -204,13 +241,13 @@ class LitematicaSchematic(
             }
         }
 
-        fun findTileEntity(x: Int, y: Int, z: Int): NbtCompound? {
+        fun findTileEntity(x: Int, y: Int, z: Int): CompoundBinaryTag? {
             return tileEntities.firstOrNull {
                 it.getInt("x") == x && it.getInt("y") == y && it.getInt("z") == z
             }
         }
 
-        fun setTileEntity(tileEntityNbt: NbtCompound) {
+        fun setTileEntity(tileEntityNbt: CompoundBinaryTag) {
             val x = tileEntityNbt.getInt("x")
             val y = tileEntityNbt.getInt("y")
             val z = tileEntityNbt.getInt("z")
@@ -231,37 +268,43 @@ class LitematicaSchematic(
         }
 
         fun tileEntitiesSequence() = tileEntities.asSequence()
-
         fun entitiesSequence() = entities.asSequence()
 
-        fun toNbt(): NbtCompound = NbtCompound().apply {
+        fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {
             put("Position", position.toNbt())
             put("Size", this@Region.size.toNbt())
-            val paletteList = NbtList()
-            blockStatePalette.forEach { paletteList.add(it.toNbt()) }
+
+            val paletteList = ListBinaryTag.builder(BinaryTagTypes.COMPOUND).apply {
+                blockStatePalette.forEach { add(it.toNbt()) }
+            }.build()
             put("BlockStatePalette", paletteList)
+
             putLongArray("BlockStates", blockStates)
-            val tileList = NbtList()
-            tileEntities.forEach { tileList.add(it) }
+
+            val tileList = ListBinaryTag.builder(BinaryTagTypes.COMPOUND).apply {
+                tileEntities.forEach { add(it) }
+            }.build()
             put("TileEntities", tileList)
-            val entityList = NbtList()
-            entities.forEach { entityList.add(it) }
+
+            val entityList = ListBinaryTag.builder(BinaryTagTypes.COMPOUND).apply {
+                entities.forEach { add(it) }
+            }.build()
             put("Entities", entityList)
-        }
+        }.build()
 
         data class BlockStateEntry(
             val name: String = "",
-            val properties: NbtCompound = NbtCompound()
+            val properties: CompoundBinaryTag = CompoundBinaryTag.empty()
         ) {
-            constructor(nbt: NbtCompound) : this(
+            constructor(nbt: CompoundBinaryTag) : this(
                 name = nbt.getString("Name"),
                 properties = nbt.getCompound("Properties")
             )
 
-            fun toNbt(): NbtCompound = NbtCompound().apply {
+            fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {
                 putString("Name", name)
                 put("Properties", properties)
-            }
+            }.build()
         }
 
         data class Quad(val x: Int, val y: Int, val z: Int, val paletteIndex: Int)
@@ -278,6 +321,9 @@ class LitematicaSchematic(
             if (!blockStates.contentEquals(other.blockStates)) return false
             if (tileEntities != other.tileEntities) return false
             if (entities != other.entities) return false
+            if (bitsPerBlock != other.bitsPerBlock) return false
+            if (numBlocks != other.numBlocks) return false
+            if (offset != other.offset) return false
 
             return true
         }
@@ -289,21 +335,24 @@ class LitematicaSchematic(
             result = 31 * result + blockStates.contentHashCode()
             result = 31 * result + tileEntities.hashCode()
             result = 31 * result + entities.hashCode()
+            result = 31 * result + bitsPerBlock
+            result = 31 * result + numBlocks
+            result = 31 * result + offset.hashCode()
             return result
         }
     }
 
     data class Vec3(val x: Int = 0, val y: Int = 0, val z: Int = 0) {
-        constructor(nbt: NbtCompound) : this(
+        constructor(nbt: CompoundBinaryTag) : this(
             x = nbt.getInt("x"),
             y = nbt.getInt("y"),
             z = nbt.getInt("z")
         )
 
-        fun toNbt(): NbtCompound = NbtCompound().apply {
+        fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {
             putInt("x", x)
             putInt("y", y)
             putInt("z", z)
-        }
+        }.build()
     }
 }
