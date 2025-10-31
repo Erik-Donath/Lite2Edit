@@ -4,9 +4,7 @@ import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.regions.CuboidRegion
-import net.kyori.adventure.nbt.BinaryTag
-import net.kyori.adventure.nbt.BinaryTagIO
-import net.kyori.adventure.nbt.CompoundBinaryTag
+import de.erikd.lite2edit.util.NBTHelper
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.math.abs
@@ -15,9 +13,8 @@ object ReadConverter {
     private val logger = LoggerFactory.getLogger(ReadConverter::class.java)
 
     fun read(inputStream: InputStream): Clipboard {
-        // Adventure reads GZIP by default for .read(InputStream)
-        val rootTag: BinaryTag = BinaryTagIO.reader().read(inputStream)
-        val root = rootTag as CompoundBinaryTag
+        val root = NBTHelper.loadLitematic(inputStream)
+
         val schematic = LitematicaSchematic(root)
         if (schematic.regions.isEmpty()) throw IllegalStateException("No regions found in schematic")
         return convertRegions(schematic.regions)
