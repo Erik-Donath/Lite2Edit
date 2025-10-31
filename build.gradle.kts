@@ -40,8 +40,14 @@ dependencies {
     modImplementation("com.sk89q.worldedit:worldedit-core:${worldeditVersion}")
 
     // Adventure NBT
-    implementation(platform("net.kyori:adventure-bom:4.25.0"))
-    implementation("net.kyori:adventure-nbt")
+    implementation("net.kyori:adventure-nbt:4.25.0")
+    implementation("net.kyori:adventure-api:4.25.0")
+    implementation("net.kyori:examination-api:1.3.0")
+    implementation("net.kyori:examination-string:1.3.0")
+    include("net.kyori:adventure-nbt:4.25.0")
+    include("net.kyori:adventure-api:4.25.0")
+    include("net.kyori:examination-api:1.3.0")
+    include("net.kyori:examination-string:1.3.0")
 }
 
 tasks.processResources {
