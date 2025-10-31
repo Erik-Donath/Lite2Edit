@@ -120,3 +120,4 @@ runs/
 
 # Exclude installMod.sh
 installMod.sh
+build-all-versions.cmd

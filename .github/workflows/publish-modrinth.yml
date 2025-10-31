@@ -5,8 +5,12 @@ on:
     types: [published]
 
 jobs:
-  publish-modrinth:
+  build-matrix:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        minecraft_version: ["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"]
 
     steps:
       - uses: actions/checkout@v4
@@ -34,12 +38,44 @@ jobs:
         run: |
           sed -i "s/mod_version=.*/mod_version=${{ env.VERSION }}/" gradle.properties
 
-      - name: Build mod
-        run: ./gradlew remapJar
+      - name: Build mod for MC ${{ matrix.minecraft_version }}
+        run: ./gradlew remapJar "-Pminecraft_version=${{ matrix.minecraft_version }}"
 
-      - name: Rename JAR to desired format
+      - name: Rename and upload JAR
         run: |
-          mv build/libs/Lite2Edit-${{ steps.version.outputs.version }}.jar build/libs/lite2edit-fabric-1.20.4-${{ steps.version.outputs.version }}.jar
+          mv build/libs/Lite2Edit-${{ steps.version.outputs.version }}.jar build/libs/lite2edit-fabric-${{ matrix.minecraft_version }}-${{ steps.version.outputs.version }}.jar
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mod-${{ matrix.minecraft_version }}
+          path: build/libs/lite2edit-fabric-${{ matrix.minecraft_version }}-${{ steps.version.outputs.version }}.jar
+          retention-days: 1
+
+  publish-modrinth:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from release tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: builds/
+
+      - name: Organize files for publishing
+        run: |
+          mkdir -p final-builds
+          find builds/ -name "*.jar" -exec cp {} final-builds/ \;
+          ls -la final-builds/
 
       - name: Publish to Modrinth
         uses: Kir-Antipov/mc-publish@v3.3
@@ -47,23 +83,34 @@ jobs:
           modrinth-id: ${{ secrets.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
-          files: |
-            build/libs/lite2edit-fabric-1.20.4-${{ steps.version.outputs.version }}.jar
+          files: final-builds/*.jar
 
           name: Lite2Edit ${{ steps.version.outputs.version }}
           version: ${{ steps.version.outputs.version }}
           version-type: release
 
-          changelog: ${{ github.event.release.body }}
+          changelog-file: CHANGELOG.md
 
           loaders: |
             fabric
 
           game-versions: |
+            1.20.2
             1.20.4
+            1.20.5
+            1.20.6
+            1.21
+            1.21.1
+            1.21.3
+            1.21.4
+            1.21.5
+            1.21.6
+            1.21.7
+            1.21.8
+            1.21.9
+            1.21.10
 
           dependencies: |
-            fabric-api | depends | *
             fabric-language-kotlin | depends | *
             worldedit | depends | *
 
