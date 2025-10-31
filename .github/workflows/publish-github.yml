@@ -46,26 +46,32 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version_tag }}"
-            # Remove 'v' prefix if present
-            VERSION=${VERSION#v}
+            VERSION="${{ inputs.version_tag }}"
           else
-            VERSION=${GITHUB_REF#refs/tags/}
-            VERSION=${VERSION#v}
+            VERSION="${GITHUB_REF_NAME}"
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing version: $VERSION for MC ${{ matrix.minecraft_version }}"
+          # normalize leading 'v'
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Update version and artifact configuration
+      - name: Set project version in gradle.properties
         run: |
-          # Update version
-          sed -i "s/mod_version=.*/mod_version=${{ env.VERSION }}/" gradle.properties
-          # Update archives_base_name to be version-specific and lowercase
-          sed -i "s/archives_base_name=.*/archives_base_name=lite2edit-mc${{ matrix.minecraft_version }}/" gradle.properties
+          sed -i "s/^mod_version=.*/mod_version=${{ steps.version.outputs.version }}/" gradle.properties
 
-      - name: Build and publish to GitHub Packages for MC ${{ matrix.minecraft_version }}
-        run: ./gradlew publish "-Pminecraft_version=${{ matrix.minecraft_version }}"
+      - name: Set Minecraft variant archive base name
+        run: |
+          # artifactId must be lowercase/digits/dashes; this is compliant
+          MC="${{ matrix.minecraft_version }}"
+          sed -i "s/^archives_base_name=.*/archives_base_name=lite2edit-mc${MC}/" gradle.properties
+
+      - name: Set Minecraft version property
+        run: |
+          sed -i "s/^minecraft_version=.*/minecraft_version=${{ matrix.minecraft_version }}/" gradle.properties
+
+      - name: Publish to GitHub Packages
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: ./gradlew --no-daemon publish -Pminecraft_version=${{ matrix.minecraft_version }}
