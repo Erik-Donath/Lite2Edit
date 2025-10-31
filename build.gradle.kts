@@ -97,7 +97,7 @@ publishing {
             pom {
                 name.set(base.archivesName.get())
                 description.set("Lite2Edit Fabric mod artifacts for $minecraftVersion")
-                url.set("https://github.com/erikd/lite2edit")
+                url.set("https://github.com/Erik-Donath/Lite2Edit")
                 licenses {
                     license {
                         name.set("MIT License")
@@ -106,15 +106,15 @@ publishing {
                 }
                 developers {
                     developer {
-                        id.set("erikd")
-                        name.set("Erik D")
-                        email.set("erikd@example.com")
+                        id.set("Erik-Donath")
+                        name.set("Erik Donath")
+                        email.set("erik.donath@example.com")
                     }
                 }
                 scm {
-                    connection.set("scm:git:git://github.com/erikd/lite2edit.git")
-                    developerConnection.set("scm:git:ssh://github.com:erikd/lite2edit.git")
-                    url.set("https://github.com/erikd/lite2edit")
+                    connection.set("scm:git:git://github.com/Erik-Donath/Lite2Edit.git")
+                    developerConnection.set("scm:git:ssh://github.com:Erik-Donath/Lite2Edit.git")
+                    url.set("https://github.com/Erik-Donath/Lite2Edit")
                 }
             }
         }
