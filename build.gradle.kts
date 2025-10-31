@@ -38,6 +38,10 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
     modImplementation("com.sk89q.worldedit:worldedit-core:${worldeditVersion}")
+
+    // Adventure NBT
+    implementation(platform("net.kyori:adventure-bom:4.25.0"))
+    implementation("net.kyori:adventure-nbt")
 }
 
 tasks.processResources {
