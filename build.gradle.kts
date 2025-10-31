@@ -33,7 +33,7 @@ dependencies {
 
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
-    modImplementation("com.sk89q.worldedit:worldedit-fabric-mc$minecraftVersion:$worldeditVersion")
+    modImplementation("com.sk89q.worldedit:worldedit-core:$worldeditVersion")
 
     implementation("net.kyori:adventure-nbt:4.25.0")
     implementation("net.kyori:adventure-api:4.25.0")
