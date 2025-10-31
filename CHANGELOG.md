@@ -1,5 +1,27 @@
 # Lite2Edit Changelog
 
+## Version 0.3 (October 31, 2025)
+
+### 🎯 Multi-Version Support
+- Expanded Minecraft version support across all WorldEdit-compatible versions
+- Released builds for Minecraft 1.20.2, 1.20.4, 1.20.5, 1.20.6, 1.21, 1.21.1, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.21.7, 1.21.8, 1.21.9, 1.21.10
+- Automated multi-version release pipeline with GitHub Actions
+- Consistent functionality across all supported Minecraft versions
+
+### 🚀 Release Infrastructure
+- Enhanced build system for cross-version compatibility
+- Improved automated testing and validation across versions
+- Streamlined release process with simultaneous multi-version deployment
+- Better version targeting based on WorldEdit Fabric compatibility
+
+### 📦 What's New for Users
+- Choose your exact Minecraft version - no more compatibility guesswork
+- Same reliable .litematic to WorldEdit conversion across all versions
+- Future-proofed for upcoming Minecraft releases
+- Simplified installation with version-specific JAR files
+
+---
+
 ## Version 0.2 (October 31, 2025)
 
 ### 🔄 Major Refactoring & Architecture Improvements
