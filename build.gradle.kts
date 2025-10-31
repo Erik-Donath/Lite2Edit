@@ -37,16 +37,51 @@ dependencies {
 
     // WorldEdit (runtime or compileOnly depending on your use)
     modImplementation("com.sk89q.worldedit:worldedit-fabric-mc$minecraftVersion:$worldeditVersion")
-    // Example additional libs
-    implementation("net.kyori:adventure-nbt:4.17.0")
+
+    // Adventure NBT
+    implementation("net.kyori:adventure-nbt:4.25.0")
+    implementation("net.kyori:adventure-api:4.25.0")
+    implementation("net.kyori:examination-api:1.3.0")
+    implementation("net.kyori:examination-string:1.3.0")
+    include("net.kyori:adventure-nbt:4.25.0")
+    include("net.kyori:adventure-api:4.25.0")
+    include("net.kyori:examination-api:1.3.0")
+    include("net.kyori:examination-string:1.3.0")
+}
+
+tasks.processResources {
+    inputs.property("version", project.version)
+    inputs.property("minecraft_version", minecraftVersion)
+    inputs.property("loader_version", project.property("loader_version"))
+    inputs.property("kotlin_loader_version", project.property("kotlin_loader_version"))
+    inputs.property("worldedit_version", worldeditVersion)
+
+    filteringCharset = "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand(
+            "version" to project.version,
+            "minecraft_version" to minecraftVersion,
+            "loader_version" to project.property("loader_version"),
+            "kotlin_loader_version" to project.property("kotlin_loader_version"),
+            "worldedit_version" to worldeditVersion
+        )
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
     options.release.set(targetJavaVersion)
 }
 
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget.set(JvmTarget.fromTarget(targetJavaVersion.toString()))
+}
+
+tasks.jar {
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName}" }
+    }
 }
 
 // Robust GitHub Packages target derived from properties or environment
@@ -62,6 +97,25 @@ publishing {
             pom {
                 name.set(base.archivesName.get())
                 description.set("Lite2Edit Fabric mod artifacts for $minecraftVersion")
+                url.set("https://github.com/erikd/lite2edit")
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("erikd")
+                        name.set("Erik D")
+                        email.set("erikd@example.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:git://github.com/erikd/lite2edit.git")
+                    developerConnection.set("scm:git:ssh://github.com:erikd/lite2edit.git")
+                    url.set("https://github.com/erikd/lite2edit")
+                }
             }
         }
     }
