@@ -1,15 +1,14 @@
-name: Publish to GitHub Packages
+name: Attach Mod to Release
 
 on:
   release:
     types: [published]
 
 jobs:
-  publish-github:
+  attach-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -38,8 +37,15 @@ jobs:
           sed -i "s/mod_version=.*/mod_version=${{ env.VERSION }}/" gradle.properties
           sed -i "s/archives_base_name=.*/archives_base_name=lite2edit-fabric-1.20.4/" gradle.properties
 
-      - name: Build and publish to GitHub Packages
-        run: ./gradlew publish
+      - name: Build mod
+        run: ./gradlew remapJar
+
+      - name: Upload mod to release
+        uses: actions/upload-release-asset@v1
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: build/libs/lite2edit-fabric-1.20.4-${{ steps.version.outputs.version }}.jar
+          asset_name: lite2edit-fabric-1.20.4-${{ steps.version.outputs.version }}.jar
+          asset_content_type: application/java-archive
