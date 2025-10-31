@@ -5,17 +5,13 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      version_tag:
-        description: 'Version tag to publish (e.g., v0.3)'
+      version:
+        description: 'Version to publish (e.g., v0.3)'
         required: true
-        type: string
-      target_release:
-        description: 'Target release tag to reference (leave empty to use version_tag)'
-        required: false
         type: string
 
 jobs:
-  publish-github:
+  publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,55 +19,27 @@ jobs:
 
     strategy:
       matrix:
-        minecraft_version: ["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"]
+        minecraft: ["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4"]
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.target_release || github.event.inputs.version_tag || github.ref }}
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Extract version from release tag or manual input
-        id: version
+      - name: Set version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version_tag }}"
-          else
-            VERSION="${GITHUB_REF_NAME}"
-          fi
-          # normalize leading 'v'
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
           VERSION="${VERSION#v}"
-          echo "version=$VERSION" | tee -a "$GITHUB_OUTPUT"
+          echo "mod_version=$VERSION" >> gradle.properties
+          echo "archives_base_name=lite2edit-mc${{ matrix.minecraft }}" >> gradle.properties
 
-      - name: Set project version in gradle.properties
-        run: |
-          sed -i "s/^mod_version=.*/mod_version=${{ steps.version.outputs.version }}/" gradle.properties
-
-      - name: Set Minecraft variant archive base name
-        run: |
-          # artifactId must be lowercase/digits/dashes; this is compliant
-          MC="${{ matrix.minecraft_version }}"
-          sed -i "s/^archives_base_name=.*/archives_base_name=lite2edit-mc${MC}/" gradle.properties
-
-      - name: Set Minecraft version property
-        run: |
-          sed -i "s/^minecraft_version=.*/minecraft_version=${{ matrix.minecraft_version }}/" gradle.properties
-
-      - name: Publish to GitHub Packages
+      - name: Publish
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: ./gradlew --no-daemon publish -Pminecraft_version=${{ matrix.minecraft_version }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: ./gradlew publish -Pminecraft_version=${{ matrix.minecraft }}
