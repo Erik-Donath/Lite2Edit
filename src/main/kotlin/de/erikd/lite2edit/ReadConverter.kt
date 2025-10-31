@@ -4,8 +4,9 @@ import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.regions.CuboidRegion
-import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.NbtSizeTracker
+import net.kyori.adventure.nbt.BinaryTag
+import net.kyori.adventure.nbt.BinaryTagIO
+import net.kyori.adventure.nbt.CompoundBinaryTag
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.math.abs
@@ -14,10 +15,10 @@ object ReadConverter {
     private val logger = LoggerFactory.getLogger(ReadConverter::class.java)
 
     fun read(inputStream: InputStream): Clipboard {
-        val schematic = LitematicaSchematic(
-            NbtIo.readCompressed(inputStream, NbtSizeTracker.ofUnlimitedBytes())
-        )
-
+        // Adventure reads GZIP by default for .read(InputStream)
+        val rootTag: BinaryTag = BinaryTagIO.reader().read(inputStream)
+        val root = rootTag as CompoundBinaryTag
+        val schematic = LitematicaSchematic(root)
         if (schematic.regions.isEmpty()) throw IllegalStateException("No regions found in schematic")
         return convertRegions(schematic.regions)
     }
@@ -34,15 +35,11 @@ object ReadConverter {
                 BlockVector3.ZERO,
                 BlockVector3.at(sizeX - 1, sizeY - 1, sizeZ - 1)
             )
-
             val clipboard = BlockArrayClipboard(clipboardRegion)
             clipboard.origin = BlockVector3.at(offset.x, offset.y, offset.z)
 
             val (blocksSet, tileEntitiesSet) = convertRegion(region, clipboard, 0, 0, 0)
-            logger.info(
-                "Converted single Litematica region sized $sizeX x $sizeY x $sizeZ, " +
-                        "set $blocksSet blocks and $tileEntitiesSet tile entities"
-            )
+            logger.info("Converted single Litematica region sized ${sizeX}x${sizeY}x${sizeZ}, set $blocksSet blocks and $tileEntitiesSet tile entities")
             return clipboard
         }
 
@@ -63,9 +60,10 @@ object ReadConverter {
             val regionMinX = offset.x
             val regionMinY = offset.y
             val regionMinZ = offset.z
-            val regionMaxX = offset.x + (if (sizeX >= 0) sizeX - 1 else sizeX + 1)
-            val regionMaxY = offset.y + (if (sizeY >= 0) sizeY - 1 else sizeY + 1)
-            val regionMaxZ = offset.z + (if (sizeZ >= 0) sizeZ - 1 else sizeZ + 1)
+
+            val regionMaxX = offset.x + if (sizeX >= 0) sizeX - 1 else sizeX + 1
+            val regionMaxY = offset.y + if (sizeY >= 0) sizeY - 1 else sizeY + 1
+            val regionMaxZ = offset.z + if (sizeZ >= 0) sizeZ - 1 else sizeZ + 1
 
             minX = minOf(minX, regionMinX)
             minY = minOf(minY, regionMinY)
@@ -83,7 +81,6 @@ object ReadConverter {
             BlockVector3.ZERO,
             BlockVector3.at(totalWidth - 1, totalHeight - 1, totalLength - 1)
         )
-
         val clipboard = BlockArrayClipboard(clipboardRegion)
         clipboard.origin = BlockVector3.at(minX, minY, minZ)
 
@@ -101,10 +98,7 @@ object ReadConverter {
             totalTileEntitiesSet += tileEntitiesSet
         }
 
-        logger.info(
-            "Converted multiple Litematica regions sized $totalWidth x $totalHeight x $totalLength, " +
-                    "set $totalBlocksSet blocks and $totalTileEntitiesSet tile entities"
-        )
+        logger.info("Converted multiple Litematica regions sized ${totalWidth}x${totalHeight}x${totalLength}, set $totalBlocksSet blocks and $totalTileEntitiesSet tile entities")
         return clipboard
     }
 
@@ -115,9 +109,9 @@ object ReadConverter {
         offsetY: Int,
         offsetZ: Int
     ): Pair<Int, Int> {
-        // TODO: Consider caching the palette conversion if regions are large or accessed multiple times
+        // TODO Consider caching the palette conversion if regions are large or accessed multiple times
         val palette = region.blockStatePalette.map { entry ->
-            BlockHelper.parseBlockState(entry.name, entry.properties)
+            BlockHelper.parseBlockState(entry.name, entry.properties) // entry.properties now CompoundBinaryTag
         }
 
         // Create tile entity lookup map for fast access
@@ -126,7 +120,13 @@ object ReadConverter {
         var blocksSet = 0
         var tileEntitiesSet = 0
 
-        region.blocksWithCoordinates().forEach { (x, y, z, paletteIndex) ->
+        // Iterate sequence correctly: destructure Quad
+        for (quad in region.blocksWithCoordinates()) {
+            val x = quad.x
+            val y = quad.y
+            val z = quad.z
+            val paletteIndex = quad.paletteIndex
+
             if (paletteIndex in palette.indices) {
                 val blockState = palette[paletteIndex]
                 if (blockState != null) {
@@ -139,33 +139,36 @@ object ReadConverter {
                         // Check if tile entity exists for this position
                         val tileEntityNbt = tileEntityMap[TileEntityHelper.positionKey(x, y, z)]
 
-                        // Create block (with or without tile entity data)
+                        // Create block with or without tile entity data
                         val baseBlock = TileEntityHelper.createBaseBlock(blockState, tileEntityNbt)
                         clipboard.setBlock(position, baseBlock)
-
                         blocksSet++
-                        if (tileEntityNbt != null) {
-                            tileEntitiesSet++
-                        }
+                        if (tileEntityNbt != null) tileEntitiesSet++
                     } catch (e: Exception) {
-                        // TODO: Evaluate whether to continue after errors or abort
+                        // TODO Evaluate whether to continue after errors or abort
                         // Log detailed error for better tracing
                         logger.error(
-                            "Failed to set block at (${offsetX + x}, ${offsetY + y}, ${offsetZ + z}): ${blockState.asString}",
+                            "Failed to set block at (${offsetX + x}, ${offsetY + y}, ${offsetZ + z}) ${blockState.asString}",
                             e
                         )
                     }
                 } else {
-                    // TODO: Decide how to handle null block states in the palette gracefully
+                    // TODO Decide how to handle null block states in the palette gracefully
                     logger.warn("Null block state for palette index $paletteIndex")
                 }
             } else {
-                // TODO: Validate palette index consistency during schematic load before conversion
-                logger.warn("Invalid palette index: $paletteIndex (palette size: ${palette.size})")
+                // TODO Validate palette index consistency during schematic load before conversion
+                logger.warn("Invalid palette index $paletteIndex (palette size ${palette.size})")
             }
         }
 
-        // TODO: Extend to convert entities (not just tile entities) into clipboard or related storage
+        /*
+        For the above:
+        - readCompressed -> read
+        - blocksWithCoordinates is a Sequence<Quad>; iterate and destructure per element
+        */
+
+        // TODO Extend to convert entities (not just tile entities) into clipboard or related storage
         return Pair(blocksSet, tileEntitiesSet)
     }
 }
