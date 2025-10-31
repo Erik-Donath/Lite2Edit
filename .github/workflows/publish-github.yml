@@ -33,10 +33,9 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update version and archives name in gradle.properties
+      - name: Update version in gradle.properties
         run: |
           sed -i "s/mod_version=.*/mod_version=${{ env.VERSION }}/" gradle.properties
-          sed -i "s/archives_base_name=.*/archives_base_name=lite2edit-fabric-1.20.4/" gradle.properties
 
       - name: Build and publish to GitHub Packages
         run: ./gradlew publish

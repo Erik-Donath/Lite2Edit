@@ -32,16 +32,19 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update version and archives name in gradle.properties
+      - name: Update version in gradle.properties
         run: |
           sed -i "s/mod_version=.*/mod_version=${{ env.VERSION }}/" gradle.properties
-          sed -i "s/archives_base_name=.*/archives_base_name=lite2edit-fabric-1.20.4/" gradle.properties
 
       - name: Build mod
         run: ./gradlew remapJar
 
+      - name: Rename JAR to desired format
+        run: |
+          mv build/libs/Lite2Edit-${{ steps.version.outputs.version }}.jar build/libs/lite2edit-fabric-1.20.4-${{ steps.version.outputs.version }}.jar
+
       - name: Upload mod to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.4.1
         with:
           files: build/libs/lite2edit-fabric-1.20.4-${{ steps.version.outputs.version }}.jar
         env:
