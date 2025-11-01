@@ -1,5 +1,37 @@
 # Lite2Edit Changelog
 
+## Version 0.4
+
+### 📋 Publishing & Metadata Improvements
+- Added integrated changelog mechanism to Modrinth publishing workflow
+- Enhanced build metadata with proper changelog integration in POM
+- Improved project description and naming consistency
+- Streamlined release process with better automation
+
+### 🔧 Build System Enhancements
+- Fixed various workflow permission issues for more reliable CI/CD
+- Removed CloudFlare validation issues affecting build process
+- Enhanced GitHub Actions workflow reliability and error handling
+- Improved multi-version build system stability
+
+### 🛠️ Development Infrastructure
+- Better separation of build environments and release processes
+- Enhanced build script organization and maintenance
+- Improved error handling in automated release workflows
+- More robust handling of publishing edge cases
+
+### 📦 What's New for Users
+- More reliable release process ensures consistent availability
+- Enhanced changelog visibility on Modrinth and GitHub
+- Improved project metadata for better discoverability
+- Continued stability improvements across all supported versions
+
+### 🔄 Behind the Scenes
+- Ongoing workflow optimizations for faster releases
+- Better handling of edge cases in automated publishing
+- Enhanced logging and debugging capabilities for CI/CD
+- Preparation for future feature additions
+
 ## Version 0.3 (October 31, 2025)
 
 ### 🎯 Multi-Version Support
