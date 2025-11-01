@@ -2,7 +2,8 @@
 # Lite2Edit
 
 Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic files (.litematic / .ltc). In short: if you have a schematic created with Litematica, Lite2Edit helps WorldEdit read it so you can paste or edit it in Minecraft.
---
+
+---
 
 ## Mod on Modrinth and Github
 You can download the mod from Modrinth via: [https://modrinth.com/mod/lite2edit](https://modrinth.com/mod/lite2edit)<br>
