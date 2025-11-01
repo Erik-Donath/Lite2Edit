@@ -3,20 +3,45 @@
   "id": "lite2edit",
   "version": "${version}",
   "name": "Lite2Edit",
-  "description": "A World Edit Plugin that allows you to load litemetica scematics.",
-  "authors": [],
-  "contact": {},
+  "description": "A Fabric mod that lets WorldEdit open Litematica schematic files (.litematic / .ltc). Converts Litematica schematics into WorldEdit clipboards for easy importing and editing.",
+  "authors": [
+    "Erik-Donath"
+  ],
+  "contributors": [
+    "Erik-Donath"
+  ],
+  "contact": {
+    "homepage": "https://github.com/Erik-Donath/Lite2Edit",
+    "sources": "https://github.com/Erik-Donath/Lite2Edit",
+    "issues": "https://github.com/Erik-Donath/Lite2Edit/issues",
+    "modrinth": "https://modrinth.com/mod/lite2edit",
+    "github": "https://github.com/Erik-Donath/Lite2Edit"
+  },
   "license": "MIT",
+  "icon": "assets/lite2edit/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
       "de.erikd.lite2edit.Lite2edit"
     ]
   },
+  "mixins": [],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric-language-kotlin": ">=${kotlin_loader_version}",
     "minecraft": "${minecraft_version}",
     "worldedit": ">=${worldedit_version}"
+  },
+  "suggests": {
+    "litematica": "*",
+    "modmenu": "*"
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "modmenu.modrinth": "https://modrinth.com/mod/lite2edit",
+        "modmenu.github": "https://github.com/Erik-Donath/Lite2Edit"
+      }
+    }
   }
 }

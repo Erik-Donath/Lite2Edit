@@ -6,6 +6,7 @@ on:
 
 concurrency:
   group: publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
 
 env:
   JAVA_VERSION: 21
@@ -43,12 +44,7 @@ jobs:
           VERSION="${{ github.event.release.tag_name }}"
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Generate POM and extract metadata
-        run: |
-          ./gradlew generatePomFileForMavenPublication \
-            -Pmod_version=${{ steps.version.outputs.version }} \
-            -Pminecraft_version=${{ env.DEFAULT_MC_VERSION }}
+          echo "Using version: $VERSION"
 
       - name: Extract changelog
         id: changelog
@@ -96,15 +92,33 @@ jobs:
 
       - name: Build mod JAR for Minecraft ${{ matrix.minecraft_version }}
         run: |
-          ./gradlew remapJar \
+          ./gradlew clean remapJar \
             -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
-            -Pminecraft_version=${{ matrix.minecraft_version }}
+            -Pminecraft_version=${{ matrix.minecraft_version }} \
+            --no-daemon
+
+      - name: Rename JAR with proper versioning
+        run: |
+          cd build/libs
+          # Find the generated JAR (should be lite2edit-{version}.jar)
+          ORIGINAL_JAR=$(find . -name "lite2edit-*.jar" -not -name "*-sources.jar" | head -1)
+          if [ -n "$ORIGINAL_JAR" ]; then
+            # Rename to include MC version
+            NEW_NAME="lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar"
+            mv "$ORIGINAL_JAR" "$NEW_NAME"
+            echo "Renamed $ORIGINAL_JAR to $NEW_NAME"
+            ls -la
+          else
+            echo "Error: No JAR file found!"
+            ls -la
+            exit 1
+          fi
 
       - name: Upload mod JARs for ${{ matrix.minecraft_version }}
         uses: actions/upload-artifact@v4
         with:
           name: build-mc${{ matrix.minecraft_version }}
-          path: build/libs/*.jar
+          path: build/libs/lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar
           retention-days: 1
 
   attach-to-release:
@@ -124,12 +138,25 @@ jobs:
         run: |
           echo "Downloaded mod JARs:"
           find . -name "*.jar" -type f | sort
+          echo "File details:"
+          ls -la *.jar
+
+      - name: Verify JAR files are valid
+        run: |
+          for jar in *.jar; do
+            if [ -f "$jar" ]; then
+              echo "Checking $jar:"
+              file "$jar"
+              unzip -t "$jar" > /dev/null 2>&1 && echo "  ✓ Valid ZIP archive" || echo "  ✗ Invalid ZIP archive"
+              echo "  Size: $(stat -c%s "$jar") bytes"
+            fi
+          done
 
       - name: Attach all mod JARs to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: "*.jar"
+          files: "lite2edit-fabric-*.jar"
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
 
@@ -151,6 +178,7 @@ jobs:
         run: |
           echo "Downloaded mod JARs:"
           find . -name "*.jar" -type f | sort
+          ls -la *.jar
 
       - name: Convert matrix to game versions
         id: game-versions
@@ -168,7 +196,7 @@ jobs:
           name: "Lite2Edit ${{ needs.extract-metadata.outputs.version }}"
           version: ${{ needs.extract-metadata.outputs.version }}
           changelog: ${{ needs.extract-metadata.outputs.changelog }}
-          files: "*.jar"
+          files: "lite2edit-fabric-*.jar"
           game-versions: ${{ steps.game-versions.outputs.versions }}
           loaders: fabric
           dependencies: |
@@ -210,4 +238,5 @@ jobs:
         run: |
           ./gradlew publish \
             -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
-            -Pminecraft_version=${{ matrix.minecraft_version }}
+            -Pminecraft_version=${{ matrix.minecraft_version }} \
+            --no-daemon

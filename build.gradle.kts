@@ -71,6 +71,8 @@ tasks.processResources {
     inputs.property("kotlin_loader_version", kotlinLoaderVersion)
     inputs.property("worldedit_version", worldEditVersion)
 
+    filteringCharset = "UTF-8"
+
     filesMatching("fabric.mod.json") {
         expand(
             "version" to project.version,
@@ -81,8 +83,6 @@ tasks.processResources {
         )
     }
 }
-
-// REMOVED: Modrinth configuration block - now handled by GitHub Actions
 
 publishing {
     publications {
@@ -134,20 +134,6 @@ publishing {
                     system.set("GitHub Actions")
                     url.set("https://github.com/Erik-Donath/lite2edit/actions")
                 }
-
-                properties.set(mapOf(
-                    "maven.compiler.source" to "21",
-                    "maven.compiler.target" to "21",
-                    "project.build.sourceEncoding" to "UTF-8",
-                    "minecraft.version" to minecraftVersion,
-                    "mod.loader" to "fabric",
-                    "fabric.loader.version" to loaderVersion,
-                    "fabric.kotlin.version" to kotlinLoaderVersion,
-                    "worldedit.version" to worldEditVersion,
-                    "changelog.version" to modVersion,
-                    "changelog.content" to loadChangelog(modVersion),
-                    "readme.content" to loadReadme()
-                ))
             }
         }
     }
@@ -208,7 +194,6 @@ fun loadChangelog(version: String): String {
         } else {
             "## Version $version\n- Multi-version release for all supported Minecraft versions\n- Cross-platform WorldEdit compatibility\n- Enhanced Litematica schematic conversion"
         }
-
     } catch (e: Exception) {
         return "Error loading changelog for version $version: ${e.message}"
     }
