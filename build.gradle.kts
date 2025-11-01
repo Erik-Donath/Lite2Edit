@@ -5,7 +5,6 @@ plugins {
     kotlin("jvm") version "2.2.21"
     id("fabric-loom") version "1.11.8"
     id("maven-publish")
-    id("com.modrinth.minotaur") version "2.+"
 }
 
 // Dynamic values from project properties (set by workflow or defaults)
@@ -51,6 +50,7 @@ dependencies {
     implementation("net.kyori:adventure-api:4.25.0")
     implementation("net.kyori:examination-api:1.3.0")
     implementation("net.kyori:examination-string:1.3.0")
+
     include("net.kyori:adventure-nbt:4.25.0")
     include("net.kyori:adventure-api:4.25.0")
     include("net.kyori:examination-api:1.3.0")
@@ -82,31 +82,12 @@ tasks.processResources {
     }
 }
 
-// Modrinth publishing configuration
-modrinth {
-    token.set(System.getenv("MODRINTH_TOKEN"))
-    projectId.set(System.getenv("MODRINTH_ID"))
-    versionNumber.set(modVersion)
-    versionName.set("Lite2Edit $modVersion for Minecraft $minecraftVersion")
-    versionType.set("release")
-    uploadFile.set(tasks.remapJar)
-    gameVersions.set(listOf(minecraftVersion))
-    loaders.set(listOf("fabric"))
-
-    // Use POM changelog content
-    changelog.set(loadChangelog(modVersion))
-
-    dependencies {
-        required.project("fabric-language-kotlin")
-        required.project("worldedit")
-    }
-}
+// REMOVED: Modrinth configuration block - now handled by GitHub Actions
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
-
             groupId = "io.github.erik-donath"
             artifactId = "lite2edit-mc${minecraftVersion}"
             version = modVersion
@@ -183,6 +164,14 @@ publishing {
     }
 }
 
+// Task to print changelog for GitHub Actions
+tasks.register("printChangelog") {
+    doLast {
+        val version = project.findProperty("mod_version") as String? ?: "0.3"
+        println(loadChangelog(version))
+    }
+}
+
 // Helper functions
 fun loadChangelog(version: String): String {
     val changelogFile = file("CHANGELOG.md")
@@ -191,7 +180,6 @@ fun loadChangelog(version: String): String {
     try {
         val content = changelogFile.readText()
         val lines = content.lines()
-
         var found = false
         val changelogLines = mutableListOf<String>()
 
@@ -207,6 +195,7 @@ fun loadChangelog(version: String): String {
                     line.startsWith("---")) {
                     break
                 }
+
                 if (changelogLines.size > 1 || line.trim().isNotEmpty()) {
                     changelogLines.add(line)
                 }
@@ -219,6 +208,7 @@ fun loadChangelog(version: String): String {
         } else {
             "## Version $version\n- Multi-version release for all supported Minecraft versions\n- Cross-platform WorldEdit compatibility\n- Enhanced Litematica schematic conversion"
         }
+
     } catch (e: Exception) {
         return "Error loading changelog for version $version: ${e.message}"
     }
@@ -229,7 +219,7 @@ fun loadReadme(): String {
     return if (readmeFile.exists()) {
         try {
             readmeFile.readText().take(2000)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "Lite2Edit - WorldEdit Litematica Integration"
         }
     } else {
