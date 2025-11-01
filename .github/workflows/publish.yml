@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+concurrency:
+  group: publish-${{ github.event.release.tag_name }}
+
 env:
   JAVA_VERSION: 21
   MINECRAFT_VERSIONS: '["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"]'
@@ -13,13 +16,11 @@ jobs:
   extract-metadata:
     name: Extract Metadata
     runs-on: ubuntu-latest
-
     outputs:
       version: ${{ steps.version.outputs.version }}
       changelog: ${{ steps.changelog.outputs.changelog }}
       readme: ${{ steps.readme.outputs.readme }}
       minecraft_versions: ${{ env.MINECRAFT_VERSIONS }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +29,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: temurin
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -41,7 +42,7 @@ jobs:
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate POM and extract metadata
         run: |
@@ -53,31 +54,30 @@ jobs:
         id: changelog
         run: |
           CHANGELOG=$(./gradlew -q printChangelog -Pmod_version=${{ steps.version.outputs.version }} | tail -n +2)
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Extract README content
         id: readme
         run: |
           if [[ -f "README.md" ]]; then
             README_CONTENT=$(head -c 2000 README.md)
-            echo "readme<<EOF" >> $GITHUB_OUTPUT
-            echo "$README_CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            echo "readme<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$README_CONTENT" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
           else
-            echo "readme=Lite2Edit - WorldEdit Litematica Integration" >> $GITHUB_OUTPUT
+            echo "readme=Lite2Edit - WorldEdit Litematica Integration" >> "$GITHUB_OUTPUT"
           fi
 
   build:
     name: Build Mod JARs
     needs: extract-metadata
     runs-on: ubuntu-latest
-
     strategy:
+      fail-fast: false
       matrix:
         minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: temurin
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -100,7 +100,7 @@ jobs:
             -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
             -Pminecraft_version=${{ matrix.minecraft_version }}
 
-      - name: Upload mod JAR
+      - name: Upload mod JARs for ${{ matrix.minecraft_version }}
         uses: actions/upload-artifact@v4
         with:
           name: build-mc${{ matrix.minecraft_version }}
@@ -109,11 +109,10 @@ jobs:
 
   attach-to-release:
     name: Attach JARs to Release
-    needs: [ extract-metadata, build ]
+    needs: [extract-metadata, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Download all mod JARs
         uses: actions/download-artifact@v4
@@ -136,9 +135,8 @@ jobs:
 
   publish-modrinth:
     name: Publish to Modrinth
-    needs: [ extract-metadata, build ]
+    needs: [extract-metadata, build]
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -158,30 +156,24 @@ jobs:
         id: game-versions
         run: |
           VERSIONS=$(echo '${{ needs.extract-metadata.outputs.minecraft_versions }}' | jq -r '.[]')
-          echo "versions<<EOF" >> $GITHUB_OUTPUT
-          echo "$VERSIONS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "versions<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$VERSIONS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Publish all mod JARs to Modrinth
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-
           name: "Lite2Edit ${{ needs.extract-metadata.outputs.version }}"
           version: ${{ needs.extract-metadata.outputs.version }}
           changelog: ${{ needs.extract-metadata.outputs.changelog }}
-
           files: "*.jar"
-
           game-versions: ${{ steps.game-versions.outputs.versions }}
-
           loaders: fabric
-
           dependencies: |
             fabric-language-kotlin(required)
             worldedit(required)
-
           version-type: release
 
   publish-github-packages:
@@ -191,11 +183,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     strategy:
+      fail-fast: false
       matrix:
         minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -204,7 +195,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: temurin
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
