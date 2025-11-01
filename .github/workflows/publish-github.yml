@@ -3,12 +3,6 @@ name: Build and Publish to GitHub Packages
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version'
-        required: true
-        default: '0.3'
 
 env:
   JAVA_VERSION: 21
@@ -58,12 +52,8 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
-            VERSION=${VERSION#v}
-          else
-            VERSION="${{ github.event.inputs.version }}"
-          fi
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build and Publish for Minecraft ${{ matrix.minecraft_version }}
