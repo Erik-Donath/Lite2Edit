@@ -1,5 +1,5 @@
-# Lite2Edit
 [![CI](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml)
+# Lite2Edit
 
 Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic files (.litematic / .ltc). In short: if you have a schematic created with Litematica, Lite2Edit helps WorldEdit read it so you can paste or edit it in Minecraft.
 --
