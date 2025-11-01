@@ -19,7 +19,6 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
       readme: ${{ steps.readme.outputs.readme }}
       minecraft_versions: ${{ env.MINECRAFT_VERSIONS }}
-      jar_files: ${{ steps.jar_files.outputs.files }}
 
     steps:
       - name: Checkout repository
@@ -71,7 +70,7 @@ jobs:
           fi
 
   build:
-    name: Build All Versions
+    name: Build Mod JARs
     needs: extract-metadata
     runs-on: ubuntu-latest
 
@@ -95,92 +94,75 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build for Minecraft ${{ matrix.minecraft_version }}
+      - name: Build mod JAR for Minecraft ${{ matrix.minecraft_version }}
         run: |
-          ./gradlew build publishToMavenLocal \
+          ./gradlew remapJar \
             -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
             -Pminecraft_version=${{ matrix.minecraft_version }}
 
-      - name: Upload build artifacts
+      - name: Upload mod JAR
         uses: actions/upload-artifact@v4
         with:
           name: build-mc${{ matrix.minecraft_version }}
-          path: |
-            build/libs/
-            build/publications/maven/
+          path: build/libs/*.jar
           retention-days: 1
 
   attach-to-release:
     name: Attach JARs to Release
-    needs: [extract-metadata, build]
+    needs: [ extract-metadata, build ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download all artifacts
+      - name: Download all mod JARs
         uses: actions/download-artifact@v4
         with:
           pattern: build-mc*
           merge-multiple: true
 
-      - name: Debug - List downloaded files
+      - name: List downloaded JAR files
         run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== All JAR files ==="
-          find . -name "*.jar" -type f
-          echo "=== Directory structure ==="
-          ls -la
+          echo "Downloaded mod JARs:"
+          find . -name "*.jar" -type f | sort
 
-      - name: Attach JAR files to release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Find all JAR files recursively, excluding sources and dev
-          find . -name "*.jar" -type f | while read jar; do
-            if [[ "$jar" != *"-sources.jar" ]] && [[ "$jar" != *"-dev.jar" ]]; then
-              echo "Uploading $jar to release"
-              gh release upload ${{ github.event.release.tag_name }} "$jar" --clobber
-            fi
-          done
-          
-          # Verify at least one file was uploaded
-          if ! find . -name "*.jar" -type f | grep -v -E "(sources|dev)\.jar$" | head -1 > /dev/null; then
-            echo "ERROR: No JAR files found to upload!"
-            exit 1
-          fi
+      - name: Attach all mod JARs to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: "*.jar"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
 
   publish-modrinth:
     name: Publish to Modrinth
-    needs: [extract-metadata, build]
+    needs: [ extract-metadata, build ]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download all mod JARs
         uses: actions/download-artifact@v4
         with:
           pattern: build-mc*
           merge-multiple: true
 
-      - name: Debug - List downloaded files
+      - name: List downloaded JAR files
         run: |
-          echo "=== Finding JAR files ==="
-          find . -name "*.jar" -type f
+          echo "Downloaded mod JARs:"
+          find . -name "*.jar" -type f | sort
 
-      - name: Convert matrix to game-versions
+      - name: Convert matrix to game versions
         id: game-versions
         run: |
-          # Konvertiere JSON Array zu newline-separated String für mc-publish
           VERSIONS=$(echo '${{ needs.extract-metadata.outputs.minecraft_versions }}' | jq -r '.[]')
           echo "versions<<EOF" >> $GITHUB_OUTPUT
           echo "$VERSIONS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Publish to Modrinth
+      - name: Publish all mod JARs to Modrinth
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_ID }}
@@ -190,23 +172,21 @@ jobs:
           version: ${{ needs.extract-metadata.outputs.version }}
           changelog: ${{ needs.extract-metadata.outputs.changelog }}
 
-          files: |
-            **/!(*-sources.jar|*-dev.jar)
+          files: "*.jar"
 
           game-versions: ${{ steps.game-versions.outputs.versions }}
 
-          loaders: |
-            fabric
+          loaders: fabric
 
           dependencies: |
-            fabric-language-kotlin | depends | *
-            worldedit | depends | *
+            fabric-language-kotlin(required)
+            worldedit(required)
 
           version-type: release
 
   publish-github-packages:
     name: Publish to GitHub Packages
-    needs: [extract-metadata, build]
+    needs: extract-metadata
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -232,12 +212,7 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Download artifacts for MC ${{ matrix.minecraft_version }}
-        uses: actions/download-artifact@v4
-        with:
-          name: build-mc${{ matrix.minecraft_version }}
-
-      - name: Publish to GitHub Packages
+      - name: Build and publish to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
