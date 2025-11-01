@@ -58,6 +58,9 @@ jobs:
         with:
           gradle-home-cache-cleanup: true
 
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
       - name: Determine version
         id: version
         run: |
