@@ -8,7 +8,7 @@ plugins {
 }
 
 // Dynamic values from project properties (set by workflow or defaults)
-val modVersion = project.findProperty("mod_version") as String? ?: "0.3"
+val modVersion = project.findProperty("mod_version") as String? ?: "0.4"
 val minecraftVersion = project.findProperty("minecraft_version") as String? ?: "1.20.4"
 val archiveBaseName = project.findProperty("archives_base_name") as String? ?: "lite2edit"
 
@@ -25,7 +25,7 @@ base {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
     withSourcesJar()
 }
 
@@ -59,7 +59,7 @@ dependencies {
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
+        jvmTarget.set(JvmTarget.JVM_17)
         freeCompilerArgs.addAll("-Xjsr305=strict")
     }
 }
@@ -153,7 +153,7 @@ publishing {
 // Task to print changelog for GitHub Actions
 tasks.register("printChangelog") {
     doLast {
-        val version = project.findProperty("mod_version") as String? ?: "0.3"
+        val version = project.findProperty("mod_version") as String? ?: "0.4"
         println(loadChangelog(version))
     }
 }
