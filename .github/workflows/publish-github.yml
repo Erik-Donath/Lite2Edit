@@ -9,10 +9,6 @@ on:
         description: 'Release version'
         required: true
         default: '0.3'
-      changelog:
-        description: 'Include changelog in release'
-        type: boolean
-        default: true
 
 env:
   JAVA_VERSION: 21
@@ -55,8 +51,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-home-cache-cleanup: true
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -66,23 +60,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
-            # Remove 'v' prefix if present
             VERSION=${VERSION#v}
           else
             VERSION="${{ github.event.inputs.version }}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
 
-      - name: Build mod for Minecraft ${{ matrix.minecraft_version }}
-        run: |
-          ./gradlew build \
-            -Pmod_version=${{ steps.version.outputs.version }} \
-            -Pminecraft_version=${{ matrix.minecraft_version }} \
-            --no-daemon \
-            --stacktrace
-
-      - name: Publish to GitHub Packages
+      - name: Build and Publish for Minecraft ${{ matrix.minecraft_version }}
         run: |
           ./gradlew publish \
             -Pmod_version=${{ steps.version.outputs.version }} \
@@ -100,58 +84,3 @@ jobs:
             build/libs/*.jar
             !build/libs/*-sources.jar
           retention-days: 30
-
-  create-release-summary:
-    name: Create Release Summary
-    needs: build-and-publish
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Extract changelog for version
-        id: changelog
-        run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          
-          # Extract changelog section for this version
-          if [ -f "CHANGELOG.md" ]; then
-            # Try to find the section for this version
-            CHANGELOG_CONTENT=$(awk -v version="$VERSION" '
-              BEGIN { found=0; content="" }
-              /^##/ { 
-                if (found) exit
-                if ($0 ~ version) found=1
-                next
-              }
-              found && /^##/ { exit }
-              found { content = content $0 "\n" }
-              END { print content }
-            ' CHANGELOG.md)
-          
-            # If no specific version found, use the latest section
-            if [ -z "$CHANGELOG_CONTENT" ]; then
-              CHANGELOG_CONTENT=$(awk '
-                /^##/ { if (NR > 1) exit; next }
-                NR > 1 { print }
-              ' CHANGELOG.md | head -n 50)
-            fi
-          
-            # Save to file for multiline content
-            echo "$CHANGELOG_CONTENT" > changelog_excerpt.md
-          else
-            echo "No CHANGELOG.md found" > changelog_excerpt.md
-          fi
-
-      - name: Update release with changelog
-        if: steps.changelog.outputs.changelog != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.release.tag_name }}
-          body_path: changelog_excerpt.md
-          append_body: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
