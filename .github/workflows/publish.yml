@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  JAVA_VERSION: 21
+  JAVA_VERSION: 17
   MINECRAFT_VERSIONS: '["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"]'
   DEFAULT_MC_VERSION: "1.20.4"
 
@@ -174,21 +174,60 @@ jobs:
           pattern: build-mc*
           merge-multiple: true
 
-      - name: List downloaded JAR files
+      - name: Generate files and game versions from downloaded JARs
+        id: generate-files
         run: |
-          echo "Downloaded mod JARs:"
-          find . -name "*.jar" -type f | sort
-          ls -la *.jar
-
-      - name: Convert matrix to game versions
-        id: game-versions
-        run: |
-          VERSIONS=$(echo '${{ needs.extract-metadata.outputs.minecraft_versions }}' | jq -r '.[]')
-          echo "versions<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$VERSIONS" >> "$GITHUB_OUTPUT"
+          echo "=== Generating file list and game versions from JAR files ==="
+          
+          # Find all JAR files and sort them
+          JAR_FILES=$(find . -name "lite2edit-fabric-*.jar" -type f | sort)
+          
+          if [ -z "$JAR_FILES" ]; then
+            echo "Error: No JAR files found!"
+            exit 1
+          fi
+          
+          echo "Found JAR files:"
+          echo "$JAR_FILES"
+          
+          # Generate files list (one per line)
+          FILES_LIST=""
+          GAME_VERSIONS=""
+          
+          for jar in $JAR_FILES; do
+            # Remove ./ prefix if present
+            jar_clean=${jar#./}
+            FILES_LIST="${FILES_LIST}${jar_clean}"$'\n'
+          
+            # Extract MC version from filename: lite2edit-fabric-1.20.4-0.4.jar -> 1.20.4
+            if [[ $jar_clean =~ lite2edit-fabric-([0-9]+\.[0-9]+\.?[0-9]*)-.*\.jar ]]; then
+              MC_VERSION=${BASH_REMATCH[1]}
+              GAME_VERSIONS="${GAME_VERSIONS}${MC_VERSION}"$'\n'
+              echo "Extracted MC version: $MC_VERSION from $jar_clean"
+            else
+              echo "Warning: Could not extract MC version from $jar_clean"
+            fi
+          done
+          
+          # Remove trailing newlines
+          FILES_LIST=$(echo "$FILES_LIST" | sed '/^$/d')
+          GAME_VERSIONS=$(echo "$GAME_VERSIONS" | sed '/^$/d')
+          
+          echo "=== Generated Files List ==="
+          echo "$FILES_LIST"
+          echo "=== Generated Game Versions ==="
+          echo "$GAME_VERSIONS"
+          
+          # Set outputs
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES_LIST" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          
+          echo "game_versions<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$GAME_VERSIONS" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Publish all mod JARs to Modrinth
+      - name: Publish single version with multiple files to Modrinth
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_ID }}
@@ -196,8 +235,8 @@ jobs:
           name: "Lite2Edit ${{ needs.extract-metadata.outputs.version }}"
           version: ${{ needs.extract-metadata.outputs.version }}
           changelog: ${{ needs.extract-metadata.outputs.changelog }}
-          files: "lite2edit-fabric-*.jar"
-          game-versions: ${{ steps.game-versions.outputs.versions }}
+          files: ${{ steps.generate-files.outputs.files }}
+          game-versions: ${{ steps.generate-files.outputs.game_versions }}
           loaders: fabric
           dependencies: |
             fabric-language-kotlin(required)
