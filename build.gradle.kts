@@ -139,10 +139,13 @@ publishing {
                     "maven.compiler.target" to "21",
                     "project.build.sourceEncoding" to "UTF-8",
                     "minecraft.version" to minecraftVersion,
+                    "worldedit.version" to worldEditVersion,
                     "mod.loader" to "fabric",
                     "fabric.loader.version" to loaderVersion,
                     "fabric.kotlin.version" to kotlinLoaderVersion,
-                    "worldedit.version" to worldEditVersion
+                    "changelog.version" to modVersion,
+                    "changelog.content" to loadChangelog(modVersion),
+                    "readme.content" to loadReadme()
                 ))
             }
         }
@@ -159,3 +162,61 @@ publishing {
         }
     }
 }
+
+fun loadChangelog(version: String): String {
+    val changelogFile = file("CHANGELOG.md")
+    if (!changelogFile.exists()) return "No changelog available for version $version"
+
+    try {
+        val content = changelogFile.readText()
+        val lines = content.lines()
+
+        var found = false
+        val changelogLines = mutableListOf<String>()
+
+        for (line in lines) {
+            // Look for the version header (e.g., "## Version 0.3")
+            if (line.startsWith("## Version") && line.contains(version)) {
+                found = true
+                changelogLines.add(line)
+                continue
+            }
+
+            if (found) {
+                // Stop when we hit the next version or separator
+                if ((line.startsWith("## Version") && !line.contains(version)) ||
+                    line.startsWith("---")) {
+                    break
+                }
+                // Skip empty lines at the start but include them later
+                if (changelogLines.size > 1 || line.trim().isNotEmpty()) {
+                    changelogLines.add(line)
+                }
+            }
+        }
+
+        val result = changelogLines.joinToString("\n").trim()
+        return if (result.isNotEmpty()) {
+            result.take(1200) // Limit for POM properties
+        } else {
+            "## Version $version\n- Multi-version release for all supported Minecraft versions\n- Cross-platform WorldEdit compatibility\n- Enhanced Litematica schematic conversion"
+        }
+    } catch (e: Exception) {
+        return "Error loading changelog for version $version: ${e.message}"
+    }
+}
+
+
+fun loadReadme(): String {
+    val readmeFile = file("README.md")
+    return if (readmeFile.exists()) {
+        try {
+            readmeFile.readText().take(2000) // Limit length for POM
+        } catch (e: Exception) {
+            "Lite2Edit - WorldEdit Litematica Integration"
+        }
+    } else {
+        "Lite2Edit - WorldEdit Litematica Integration"
+    }
+}
+
