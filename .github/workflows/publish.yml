@@ -69,11 +69,6 @@ jobs:
             echo "readme=Lite2Edit - WorldEdit Litematica Integration" >> $GITHUB_OUTPUT
           fi
 
-      - name: Clean build directory
-        run: |
-          rm -rf build/
-          echo "Cleaned build directory for matrix jobs"
-
   build:
     name: Build All Versions
     needs: extract-metadata
@@ -112,7 +107,7 @@ jobs:
           path: |
             build/libs/
             build/publications/maven/
-          retention-days: 1
+          retention-days: 7
 
   attach-to-release:
     name: Attach JARs to Release
@@ -157,7 +152,6 @@ jobs:
       - name: Convert matrix to game-versions
         id: game-versions
         run: |
-          # Konvertiere JSON Array zu newline-separated String für mc-publish
           VERSIONS=$(echo '${{ needs.extract-metadata.outputs.minecraft_versions }}' | jq -r '.[]')
           echo "versions<<EOF" >> $GITHUB_OUTPUT
           echo "$VERSIONS" >> $GITHUB_OUTPUT
@@ -182,8 +176,8 @@ jobs:
             fabric
 
           dependencies: |
-            fabric-language-kotlin(required){modrinth:Ha28R6CL}
-            worldedit(required){modrinth:1u6JkXh5}
+            fabric-language-kotlin | depends | *
+            worldedit | depends | *
 
           version-type: release
 
