@@ -19,6 +19,7 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
       readme: ${{ steps.readme.outputs.readme }}
       minecraft_versions: ${{ env.MINECRAFT_VERSIONS }}
+      jar_files: ${{ steps.jar_files.outputs.files }}
 
     steps:
       - name: Checkout repository
@@ -107,7 +108,7 @@ jobs:
           path: |
             build/libs/
             build/publications/maven/
-          retention-days: 7
+          retention-days: 1
 
   attach-to-release:
     name: Attach JARs to Release
@@ -123,16 +124,32 @@ jobs:
           pattern: build-mc*
           merge-multiple: true
 
+      - name: Debug - List downloaded files
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== All JAR files ==="
+          find . -name "*.jar" -type f
+          echo "=== Directory structure ==="
+          ls -la
+
       - name: Attach JAR files to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for jar in build/libs/*.jar; do
+          # Find all JAR files recursively, excluding sources and dev
+          find . -name "*.jar" -type f | while read jar; do
             if [[ "$jar" != *"-sources.jar" ]] && [[ "$jar" != *"-dev.jar" ]]; then
               echo "Uploading $jar to release"
               gh release upload ${{ github.event.release.tag_name }} "$jar" --clobber
             fi
           done
+          
+          # Verify at least one file was uploaded
+          if ! find . -name "*.jar" -type f | grep -v -E "(sources|dev)\.jar$" | head -1 > /dev/null; then
+            echo "ERROR: No JAR files found to upload!"
+            exit 1
+          fi
 
   publish-modrinth:
     name: Publish to Modrinth
@@ -149,9 +166,15 @@ jobs:
           pattern: build-mc*
           merge-multiple: true
 
+      - name: Debug - List downloaded files
+        run: |
+          echo "=== Finding JAR files ==="
+          find . -name "*.jar" -type f
+
       - name: Convert matrix to game-versions
         id: game-versions
         run: |
+          # Konvertiere JSON Array zu newline-separated String für mc-publish
           VERSIONS=$(echo '${{ needs.extract-metadata.outputs.minecraft_versions }}' | jq -r '.[]')
           echo "versions<<EOF" >> $GITHUB_OUTPUT
           echo "$VERSIONS" >> $GITHUB_OUTPUT
@@ -168,7 +191,7 @@ jobs:
           changelog: ${{ needs.extract-metadata.outputs.changelog }}
 
           files: |
-            build/libs/!(*-sources.jar|*-dev.jar)
+            **/!(*-sources.jar|*-dev.jar)
 
           game-versions: ${{ steps.game-versions.outputs.versions }}
 
