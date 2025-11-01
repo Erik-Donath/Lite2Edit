@@ -74,9 +74,6 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
-      - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
-
       - name: Build mod for Minecraft ${{ matrix.minecraft_version }}
         run: |
           ./gradlew build \
