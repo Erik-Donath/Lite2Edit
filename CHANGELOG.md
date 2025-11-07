@@ -1,5 +1,30 @@
 # Lite2Edit Changelog
 
+## Version 0.5
+
+### 🖼️ New Features
+- Added a custom mod icon to enhance Modrinth and launcher integration (`assets/icon.png`)
+- Improved the mod’s appearance in mod loaders and repositories
+
+### 🛠️ Build & Publishing Improvements
+- Fixed file order on Modrinth for clearer downloads
+- Various enhancements to `build.gradle.kts` and publish workflow for better versioning and metadata
+- Updates to `fabric.mod.json` and Modrinth publishing for more accurate information
+
+### 📄 Documentation
+- Updated README.md several times for clarifications and polish
+- Improved visibility and explanation for mod functions and compatibility
+
+### ⚡ Workflow & Code Maintenance
+- Centralized publish logic into a single, maintainable workflow file
+- Removed unneeded cleanup and manual dispatch steps for automated reliability
+
+### 🏷️ General Enhancements
+- Multiple small fixes and workflow cleanups for long-term stability
+- Polished metadata across distributions
+
+---
+
 ## Version 0.4
 
 ### 📋 Publishing & Metadata Improvements
@@ -32,7 +57,9 @@
 - Enhanced logging and debugging capabilities for CI/CD
 - Preparation for future feature additions
 
-## Version 0.3 (October 31, 2025)
+---
+
+## Version 0.3
 
 ### 🎯 Multi-Version Support
 - Expanded Minecraft version support across all WorldEdit-compatible versions
@@ -54,7 +81,7 @@
 
 ---
 
-## Version 0.2 (October 31, 2025)
+## Version 0.2
 
 ### 🔄 Major Refactoring & Architecture Improvements
 - Complete rewrite of core components for better stability and performance
@@ -82,7 +109,7 @@
 
 ---
 
-## Version 0.1 (October 25, 2025)
+## Version 0.1
 
 ### 🚀 Initial Release
 - Core functionality to convert Litematica .litematic files to WorldEdit clipboards
