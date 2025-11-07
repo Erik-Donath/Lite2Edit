@@ -22,6 +22,8 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
       readme: ${{ steps.readme.outputs.readme }}
       minecraft_versions: ${{ env.MINECRAFT_VERSIONS }}
+      first_mc_version: ${{ steps.first-mc.outputs.version }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,6 +68,13 @@ jobs:
             echo "readme=Lite2Edit - WorldEdit Litematica Integration" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Get first Minecraft version
+        id: first-mc
+        run: |
+          FIRST_VERSION=$(echo '${{ env.MINECRAFT_VERSIONS }}' | jq -r '.[0]')
+          echo "version=$FIRST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "First MC version: $FIRST_VERSION"
+
   build:
     name: Build Mod JARs
     needs: extract-metadata
@@ -74,6 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -100,10 +110,8 @@ jobs:
       - name: Rename JAR with proper versioning
         run: |
           cd build/libs
-          # Find the generated JAR (should be lite2edit-{version}.jar)
           ORIGINAL_JAR=$(find . -name "lite2edit-*.jar" -not -name "*-sources.jar" | head -1)
           if [ -n "$ORIGINAL_JAR" ]; then
-            # Rename to include MC version
             NEW_NAME="lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar"
             mv "$ORIGINAL_JAR" "$NEW_NAME"
             echo "Renamed $ORIGINAL_JAR to $NEW_NAME"
@@ -127,6 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - name: Download all mod JARs
         uses: actions/download-artifact@v4
@@ -162,86 +171,52 @@ jobs:
 
   publish-modrinth:
     name: Publish to Modrinth
-    needs: [extract-metadata, build]
+    needs: [extract-metadata]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all mod JARs
-        uses: actions/download-artifact@v4
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          pattern: build-mc*
-          merge-multiple: true
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
 
-      - name: Generate files and game versions from downloaded JARs
-        id: generate-files
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Determine if first Minecraft version
+        id: is-first
         run: |
-          echo "=== Generating file list and game versions from JAR files ==="
-          
-          # Find all JAR files and sort them
-          JAR_FILES=$(find . -name "lite2edit-fabric-*.jar" -type f | sort)
-          
-          if [ -z "$JAR_FILES" ]; then
-            echo "Error: No JAR files found!"
-            exit 1
+          FIRST_VERSION="${{ needs.extract-metadata.outputs.first_mc_version }}"
+          if [ "${{ matrix.minecraft_version }}" == "$FIRST_VERSION" ]; then
+            echo "include_changelog=true" >> "$GITHUB_OUTPUT"
+            echo "This is the first MC version ($FIRST_VERSION), will include changelog"
+          else
+            echo "include_changelog=false" >> "$GITHUB_OUTPUT"
+            echo "Not the first MC version, will skip changelog"
           fi
-          
-          echo "Found JAR files:"
-          echo "$JAR_FILES"
-          
-          # Generate files list (one per line)
-          FILES_LIST=""
-          GAME_VERSIONS=""
-          
-          for jar in $JAR_FILES; do
-            # Remove ./ prefix if present
-            jar_clean=${jar#./}
-            FILES_LIST="${FILES_LIST}${jar_clean}"$'\n'
-          
-            # Extract MC version from filename: lite2edit-fabric-1.20.4-0.4.jar -> 1.20.4
-            if [[ $jar_clean =~ lite2edit-fabric-([0-9]+\.[0-9]+\.?[0-9]*)-.*\.jar ]]; then
-              MC_VERSION=${BASH_REMATCH[1]}
-              GAME_VERSIONS="${GAME_VERSIONS}${MC_VERSION}"$'\n'
-              echo "Extracted MC version: $MC_VERSION from $jar_clean"
-            else
-              echo "Warning: Could not extract MC version from $jar_clean"
-            fi
-          done
-          
-          # Remove trailing newlines
-          FILES_LIST=$(echo "$FILES_LIST" | sed '/^$/d')
-          GAME_VERSIONS=$(echo "$GAME_VERSIONS" | sed '/^$/d')
-          
-          echo "=== Generated Files List ==="
-          echo "$FILES_LIST"
-          echo "=== Generated Game Versions ==="
-          echo "$GAME_VERSIONS"
-          
-          # Set outputs
-          echo "files<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$FILES_LIST" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          
-          echo "game_versions<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$GAME_VERSIONS" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Publish single version with multiple files to Modrinth
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          modrinth-id: ${{ secrets.MODRINTH_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: "Lite2Edit ${{ needs.extract-metadata.outputs.version }}"
-          version: ${{ needs.extract-metadata.outputs.version }}
-          changelog: ${{ needs.extract-metadata.outputs.changelog }}
-          files: ${{ steps.generate-files.outputs.files }}
-          game-versions: ${{ steps.generate-files.outputs.game_versions }}
-          loaders: fabric
-          dependencies: |
-            fabric-language-kotlin(required)
-            worldedit(required)
-          version-type: release
+      - name: Build and publish to Modrinth using Minotaur
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
+          INCLUDE_CHANGELOG: ${{ steps.is-first.outputs.include_changelog }}
+          FIRST_MC_VERSION: ${{ needs.extract-metadata.outputs.first_mc_version }}
+        run: |
+          ./gradlew modrinth \
+            -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
+            -Pminecraft_version=${{ matrix.minecraft_version }} \
+            --no-daemon
 
   publish-github-packages:
     name: Publish to GitHub Packages
@@ -254,6 +229,7 @@ jobs:
       fail-fast: false
       matrix:
         minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

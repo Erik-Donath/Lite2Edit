@@ -5,6 +5,7 @@ plugins {
     kotlin("jvm") version "2.2.21"
     id("fabric-loom") version "1.11.8"
     id("maven-publish")
+    id("com.modrinth.minotaur") version "2.+"
 }
 
 // Dynamic values from project properties (set by workflow or defaults)
@@ -84,6 +85,39 @@ tasks.processResources {
     }
 }
 
+modrinth {
+    token.set(System.getenv("MODRINTH_TOKEN"))
+    projectId.set(System.getenv("MODRINTH_ID") ?: "")
+
+    // Version configuration
+    versionNumber.set("${modVersion}-mc${minecraftVersion}")
+    versionName.set("Lite2Edit ${modVersion} for Minecraft ${minecraftVersion}")
+    versionType.set("release")
+
+    // File to upload
+    uploadFile.set(tasks.remapJar)
+
+    // Game versions and loaders
+    gameVersions.addAll(minecraftVersion)
+    loaders.add("fabric")
+
+    // Changelog
+    val includeChangelog = System.getenv("INCLUDE_CHANGELOG")?.toBoolean() ?: false
+    if (includeChangelog) {
+        changelog.set(
+            loadChangelog(modVersion)
+        )
+    }
+
+    // Dependencies
+    dependencies {
+        required.project("fabric-language-kotlin")
+        required.project("worldedit")
+    }
+
+    failSilently.set(true)
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -158,7 +192,7 @@ tasks.register("printChangelog") {
     }
 }
 
-// Helper functions
+// Helper function to load changelog
 fun loadChangelog(version: String): String {
     val changelogFile = file("CHANGELOG.md")
     if (!changelogFile.exists()) return "No changelog available for version $version"
@@ -190,24 +224,11 @@ fun loadChangelog(version: String): String {
 
         val result = changelogLines.joinToString("\n").trim()
         return if (result.isNotEmpty()) {
-            result.take(1200)
+            result.take(65000) // Modrinth changelog limit
         } else {
-            "## Version $version\n- Multi-version release for all supported Minecraft versions\n- Cross-platform WorldEdit compatibility\n- Enhanced Litematica schematic conversion"
+            "## Version $version\n- Multi-version release for Minecraft $version\n- Cross-platform WorldEdit compatibility\n- Enhanced Litematica schematic conversion"
         }
     } catch (e: Exception) {
         return "Error loading changelog for version $version: ${e.message}"
-    }
-}
-
-fun loadReadme(): String {
-    val readmeFile = file("README.md")
-    return if (readmeFile.exists()) {
-        try {
-            readmeFile.readText().take(2000)
-        } catch (_: Exception) {
-            "Lite2Edit - WorldEdit Litematica Integration"
-        }
-    } else {
-        "Lite2Edit - WorldEdit Litematica Integration"
     }
 }
