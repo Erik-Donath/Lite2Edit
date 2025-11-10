@@ -1,4 +1,5 @@
 [![CI](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml)
+[![Qodana](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml)
 [![Automatic Dependency Submission](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/dependency-graph/auto-submission/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/dependency-graph/auto-submission)
 [![Build and Publish Release](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/publish.yml/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/publish.yml)
 
