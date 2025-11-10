@@ -14,6 +14,7 @@ jobs:
       pull-requests: write
       checks: write
       security-events: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Qodana Scan
+        id: qodana
         uses: JetBrains/qodana-action@v2025.2
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
@@ -34,6 +36,7 @@ jobs:
           push-fixes: 'none'
 
       - name: Upload SARIF to GitHub Code Scanning
+        if: ${{ always() }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json
