@@ -63,11 +63,13 @@ class LitematicaSchematic(
             return out
         }
 
+        @Suppress("unused")
         private fun getCompoundList(nbt: CompoundBinaryTag, key: String): ListBinaryTag {
             return nbt.getList(key, BinaryTagTypes.COMPOUND)
         }
     }
 
+    @Suppress("unused")
     fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {
         putInt("MinecraftDataVersion", minecraftDataVersion)
         putInt("Version", version)
@@ -176,6 +178,7 @@ class LitematicaSchematic(
             return result
         }
 
+        @Suppress("unused")
         fun getBlockIndex(x: Int, y: Int, z: Int): Int {
             val (nx, ny, nz) = normalizeCoords(x, y, z)
             if (nx !in 0 until abs(size.x) ||
@@ -187,6 +190,7 @@ class LitematicaSchematic(
             return decoded.getOrElse(index) { -1 }
         }
 
+        @Suppress("unused")
         fun setBlockIndex(x: Int, y: Int, z: Int, blockIndex: Int) {
             val (nx, ny, nz) = normalizeCoords(x, y, z)
             require(nx in 0 until abs(size.x)) { "x out of bounds" }
@@ -231,7 +235,6 @@ class LitematicaSchematic(
         fun blocksWithCoordinates() = sequence {
             val decoded = decodeBlocks()
             val sizeX = abs(size.x)
-            val sizeY = abs(size.y)
             val sizeZ = abs(size.z)
             for (i in decoded.indices) {
                 val x = i % sizeX
@@ -241,12 +244,14 @@ class LitematicaSchematic(
             }
         }
 
+        @Suppress("unused")
         fun findTileEntity(x: Int, y: Int, z: Int): CompoundBinaryTag? {
             return tileEntities.firstOrNull {
                 it.getInt("x") == x && it.getInt("y") == y && it.getInt("z") == z
             }
         }
 
+        @Suppress("unused")
         fun setTileEntity(tileEntityNbt: CompoundBinaryTag) {
             val x = tileEntityNbt.getInt("x")
             val y = tileEntityNbt.getInt("y")
@@ -261,13 +266,16 @@ class LitematicaSchematic(
             }
         }
 
+        @Suppress("unused")
         fun removeTileEntity(x: Int, y: Int, z: Int): Boolean {
             return tileEntities.removeIf {
                 it.getInt("x") == x && it.getInt("y") == y && it.getInt("z") == z
             }
         }
 
+        @Suppress("unused")
         fun tileEntitiesSequence() = tileEntities.asSequence()
+        @Suppress("unused")
         fun entitiesSequence() = entities.asSequence()
 
         fun toNbt(): CompoundBinaryTag = CompoundBinaryTag.builder().apply {

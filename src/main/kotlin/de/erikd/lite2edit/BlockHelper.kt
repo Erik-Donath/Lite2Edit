@@ -16,7 +16,7 @@ object BlockHelper {
         }
 
         var state = blockType.defaultState
-        if (properties == null || properties.isEmpty()) return state
+        if (properties == null || properties.isEmpty) return state
 
         for (propName in properties.keySet()) {
             val propValue = properties.getString(propName)

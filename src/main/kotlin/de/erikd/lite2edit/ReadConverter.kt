@@ -4,7 +4,6 @@ import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.regions.CuboidRegion
-import de.erikd.lite2edit.util.NBTHelper
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.math.abs

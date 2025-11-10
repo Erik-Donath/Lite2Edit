@@ -91,7 +91,7 @@ modrinth {
 
     // Version configuration
     versionNumber.set("lite2edit-fabric-${minecraftVersion}-${modVersion}")
-    versionName.set("Lite2Edit Fabric ${modVersion} for Minecraft ${minecraftVersion}")
+    versionName.set("Lite2Edit Fabric $modVersion for Minecraft $minecraftVersion")
     versionType.set("release")
 
     // File to upload

@@ -4,13 +4,10 @@ import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardWriter
-import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
 
 class LitematicaSchematicFormater : ClipboardFormat {
-    //private val logger = LoggerFactory.getLogger(LitematicaSchematicFormater::class.java)
-
     override fun getName(): String = "Litematic Clipboard Format"
     override fun getAliases(): Set<String?> = setOf("litematic", "ltc")
     override fun getPrimaryFileExtension(): String = "litematic"

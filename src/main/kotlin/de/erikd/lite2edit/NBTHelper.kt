@@ -1,4 +1,4 @@
-package de.erikd.lite2edit.util
+package de.erikd.lite2edit
 
 import net.kyori.adventure.nbt.BinaryTag
 import net.kyori.adventure.nbt.BinaryTagIO
