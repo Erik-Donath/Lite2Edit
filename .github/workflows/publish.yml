@@ -19,26 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      changelog: ${{ steps.changelog.outputs.changelog }}
-      readme: ${{ steps.readme.outputs.readme }}
-      minecraft_versions: ${{ env.MINECRAFT_VERSIONS }}
-      first_mc_version: ${{ steps.first-mc.outputs.version }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
 
       - name: Extract version from release tag
         id: version
@@ -48,33 +31,6 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version: $VERSION"
 
-      - name: Extract changelog
-        id: changelog
-        run: |
-          CHANGELOG=$(./gradlew -q printChangelog -Pmod_version=${{ steps.version.outputs.version }} | tail -n +2)
-          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
-      - name: Extract README content
-        id: readme
-        run: |
-          if [[ -f "README.md" ]]; then
-            README_CONTENT=$(head -c 2000 README.md)
-            echo "readme<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$README_CONTENT" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-          else
-            echo "readme=Lite2Edit - WorldEdit Litematica Integration" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Get first Minecraft version
-        id: first-mc
-        run: |
-          FIRST_VERSION=$(echo '${{ env.MINECRAFT_VERSIONS }}' | jq -r '.[0]')
-          echo "version=$FIRST_VERSION" >> "$GITHUB_OUTPUT"
-          echo "First MC version: $FIRST_VERSION"
-
   build:
     name: Build Mod JARs
     needs: extract-metadata
@@ -82,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
+        minecraft_version: ${{ fromJson(env.MINECRAFT_VERSIONS) }}
 
     steps:
       - name: Checkout repository
@@ -125,9 +81,8 @@ jobs:
       - name: Upload mod JARs for ${{ matrix.minecraft_version }}
         uses: actions/upload-artifact@v4
         with:
-          name: build-mc${{ matrix.minecraft_version }}
+          name: lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}
           path: build/libs/lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar
-          retention-days: 1
 
   attach-to-release:
     name: Attach JARs to Release
@@ -140,7 +95,7 @@ jobs:
       - name: Download all mod JARs
         uses: actions/download-artifact@v4
         with:
-          pattern: build-mc*
+          pattern: lite2edit-*
           merge-multiple: true
 
       - name: List downloaded JAR files
@@ -150,22 +105,11 @@ jobs:
           echo "File details:"
           ls -la *.jar
 
-      - name: Verify JAR files are valid
-        run: |
-          for jar in *.jar; do
-            if [ -f "$jar" ]; then
-              echo "Checking $jar:"
-              file "$jar"
-              unzip -t "$jar" > /dev/null 2>&1 && echo "  ✓ Valid ZIP archive" || echo "  ✗ Invalid ZIP archive"
-              echo "  Size: $(stat -c%s "$jar") bytes"
-            fi
-          done
-
       - name: Attach all mod JARs to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: "lite2edit-fabric-*.jar"
+          files: "lite2edit-*.jar"
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
 
@@ -176,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
+        minecraft_version: ${{ fromJson(env.MINECRAFT_VERSIONS) }}
 
     steps:
       - name: Checkout repository
@@ -194,24 +138,10 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Determine if first Minecraft version
-        id: is-first
-        run: |
-          FIRST_VERSION="${{ needs.extract-metadata.outputs.first_mc_version }}"
-          if [ "${{ matrix.minecraft_version }}" == "$FIRST_VERSION" ]; then
-            echo "include_changelog=true" >> "$GITHUB_OUTPUT"
-            echo "This is the first MC version ($FIRST_VERSION), will include changelog"
-          else
-            echo "include_changelog=false" >> "$GITHUB_OUTPUT"
-            echo "Not the first MC version, will skip changelog"
-          fi
-
       - name: Build and publish to Modrinth using Minotaur
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
-          INCLUDE_CHANGELOG: ${{ steps.is-first.outputs.include_changelog }}
-          FIRST_MC_VERSION: ${{ needs.extract-metadata.outputs.first_mc_version }}
         run: |
           ./gradlew modrinth \
             -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
@@ -220,7 +150,7 @@ jobs:
 
   publish-github-packages:
     name: Publish to GitHub Packages
-    needs: extract-metadata
+    needs: [extract-metadata]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -228,7 +158,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
+        minecraft_version: ${{ fromJson(env.MINECRAFT_VERSIONS) }}
 
     steps:
       - name: Checkout repository

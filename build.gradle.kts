@@ -26,7 +26,7 @@ base {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    toolchain.languageVersion = JavaLanguageVersion.of(17) // 21
     withSourcesJar()
 }
 
@@ -90,8 +90,8 @@ modrinth {
     projectId.set(System.getenv("MODRINTH_ID") ?: "")
 
     // Version configuration
-    versionNumber.set("${modVersion}-mc${minecraftVersion}")
-    versionName.set("Lite2Edit ${modVersion} for Minecraft ${minecraftVersion}")
+    versionNumber.set("lite2edit-fabric-${minecraftVersion}-${modVersion}")
+    versionName.set("Lite2Edit Fabric ${modVersion} for Minecraft ${minecraftVersion}")
     versionType.set("release")
 
     // File to upload
@@ -100,14 +100,6 @@ modrinth {
     // Game versions and loaders
     gameVersions.addAll(minecraftVersion)
     loaders.add("fabric")
-
-    // Changelog
-    val includeChangelog = System.getenv("INCLUDE_CHANGELOG")?.toBoolean() ?: false
-    if (includeChangelog) {
-        changelog.set(
-            loadChangelog(modVersion)
-        )
-    }
 
     // Dependencies
     dependencies {
@@ -137,7 +129,6 @@ publishing {
                         name.set("The MIT License")
                         url.set("https://opensource.org/licenses/MIT")
                         distribution.set("repo")
-                        comments.set("A permissive license that is short and to the point.")
                     }
                 }
 
@@ -181,54 +172,5 @@ publishing {
                 password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("gpr.token") as String?
             }
         }
-    }
-}
-
-// Task to print changelog for GitHub Actions
-tasks.register("printChangelog") {
-    doLast {
-        val version = project.findProperty("mod_version") as String? ?: "0.4"
-        println(loadChangelog(version))
-    }
-}
-
-// Helper function to load changelog
-fun loadChangelog(version: String): String {
-    val changelogFile = file("CHANGELOG.md")
-    if (!changelogFile.exists()) return "No changelog available for version $version"
-
-    try {
-        val content = changelogFile.readText()
-        val lines = content.lines()
-        var found = false
-        val changelogLines = mutableListOf<String>()
-
-        for (line in lines) {
-            if (line.startsWith("## Version") && line.contains(version)) {
-                found = true
-                changelogLines.add(line)
-                continue
-            }
-
-            if (found) {
-                if ((line.startsWith("## Version") && !line.contains(version)) ||
-                    line.startsWith("---")) {
-                    break
-                }
-
-                if (changelogLines.size > 1 || line.trim().isNotEmpty()) {
-                    changelogLines.add(line)
-                }
-            }
-        }
-
-        val result = changelogLines.joinToString("\n").trim()
-        return if (result.isNotEmpty()) {
-            result.take(65000) // Modrinth changelog limit
-        } else {
-            "## Version $version\n- Multi-version release for Minecraft $version\n- Cross-platform WorldEdit compatibility\n- Enhanced Litematica schematic conversion"
-        }
-    } catch (e: Exception) {
-        return "Error loading changelog for version $version: ${e.message}"
     }
 }
