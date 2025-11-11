@@ -5,8 +5,8 @@ import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.math.Vector3
 import com.sk89q.worldedit.regions.CuboidRegion
-import com.sk89q.worldedit.util.Location
 import net.kyori.adventure.nbt.BinaryTagTypes
+import com.sk89q.worldedit.util.Location
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.math.abs
@@ -16,7 +16,6 @@ object ReadConverter {
 
     fun read(inputStream: InputStream): Clipboard {
         val root = NBTHelper.loadLitematic(inputStream)
-
         val schematic = LitematicaSchematic(root)
         if (schematic.regions.isEmpty()) throw IllegalStateException("No regions found in schematic")
         return convertRegions(schematic.regions)
@@ -28,21 +27,22 @@ object ReadConverter {
             val sizeX = abs(region.size.x)
             val sizeY = abs(region.size.y)
             val sizeZ = abs(region.size.z)
-            val offset = region.offset
 
             val clipboardRegion = CuboidRegion(
                 BlockVector3.ZERO,
                 BlockVector3.at(sizeX - 1, sizeY - 1, sizeZ - 1)
             )
             val clipboard = BlockArrayClipboard(clipboardRegion)
-            clipboard.origin = BlockVector3.at(offset.x, offset.y, offset.z)
+
+            // Normalize to origin: ignore Litematica's region.offset completely
+            clipboard.origin = BlockVector3.ZERO
 
             val (blocksSet, tileEntitiesSet, entitiesSet) = convertRegion(region, clipboard, 0, 0, 0)
             logger.info("Converted single Litematica region sized ${sizeX}x${sizeY}x${sizeZ}, set $blocksSet blocks with $tileEntitiesSet tile entities and $entitiesSet entities")
             return clipboard
         }
 
-        // Multiple regions: compute global bounding box
+        // Multiple regions: compute global bounding box ignoring offsets in output by normalizing to 0,0,0
         var minX = Int.MAX_VALUE
         var minY = Int.MAX_VALUE
         var minZ = Int.MAX_VALUE
@@ -81,7 +81,9 @@ object ReadConverter {
             BlockVector3.at(totalWidth - 1, totalHeight - 1, totalLength - 1)
         )
         val clipboard = BlockArrayClipboard(clipboardRegion)
-        clipboard.origin = BlockVector3.at(minX, minY, minZ)
+
+        // Normalize to origin for combined clipboard as well
+        clipboard.origin = BlockVector3.ZERO
 
         var totalBlocksSet = 0
         var totalTileEntitiesSet = 0
@@ -111,17 +113,15 @@ object ReadConverter {
         offsetZ: Int
     ): Triple<Int, Int, Int> {
         val palette = region.blockStatePalette.map { entry ->
-            BlockHelper.parseBlockState(entry.name, entry.properties) // entry.properties now CompoundBinaryTag
+            BlockHelper.parseBlockState(entry.name, entry.properties)
         }
 
-        // Create tile entity lookup map for fast access
         val tileEntityMap = TileEntityHelper.createTileEntityMap(region.tileEntities)
 
         var blocksSet = 0
         var tileEntitiesSet = 0
         var entitiesSet = 0
 
-        // Iterate sequence correctly: destructure Quad
         for (quad in region.blocksWithCoordinates()) {
             val x = quad.x
             val y = quad.y
@@ -132,15 +132,12 @@ object ReadConverter {
                 val blockState = palette[paletteIndex]
                 if (blockState != null) {
                     try {
-                        val worldX = offsetX + x
-                        val worldY = offsetY + y
-                        val worldZ = offsetZ + z
-                        val position = BlockVector3.at(worldX, worldY, worldZ)
+                        val cx = offsetX + x
+                        val cy = offsetY + y
+                        val cz = offsetZ + z
+                        val position = BlockVector3.at(cx, cy, cz)
 
-                        // Check if tile entity exists for this position
                         val tileEntityNbt = tileEntityMap[TileEntityHelper.positionKey(x, y, z)]
-
-                        // Create block with or without tile entity data
                         val baseBlock = TileEntityHelper.createBaseBlock(blockState, tileEntityNbt)
                         clipboard.setBlock(position, baseBlock)
                         blocksSet++
@@ -164,31 +161,40 @@ object ReadConverter {
                 val base = EntityHelper.convertLitematicaEntity(entityNbt)
                 if (base != null) {
                     val posDouble = entityNbt.getList("Pos", BinaryTagTypes.DOUBLE)
+                    val (ex, ey, ez) = if (posDouble.size() >= 3)
+                        Triple(posDouble.getDouble(0), posDouble.getDouble(1), posDouble.getDouble(2))
+                    else
+                        Triple(0.0, 0.0, 0.0)
 
-                    val (ex, ey, ez) = when {
-                        posDouble.size() >= 3 ->
-                            Triple(posDouble.getDouble(0), posDouble.getDouble(1), posDouble.getDouble(2))
-                        else -> Triple(0.0, 0.0, 0.0)
+                    val cx = offsetX + ex
+                    val cy = offsetY + ey
+                    val cz = offsetZ + ez
+                    val position = Vector3.at(cx, cy, cz)
+
+                    // Optional bounds guard
+                    val r = clipboard.region
+                    val inBounds = position.containedWithin(r.minimumPoint.toVector3(), r.maximumPoint.toVector3())
+
+                    if (!inBounds) {
+                        logger.warn("Entity out of clipboard bounds at ($cx, $cy, $cz) for region ${r.minimumPoint}..${r.maximumPoint}")
                     }
-
-                    val worldX = offsetX + ex
-                    val worldY = offsetY + ey
-                    val worldZ = offsetZ + ez
 
                     val yaw = if (entityNbt.contains("Yaw")) entityNbt.getFloat("Yaw") else 0f
                     val pitch = if (entityNbt.contains("Pitch")) entityNbt.getFloat("Pitch") else 0f
 
-                    val loc = Location(null, Vector3.at(worldX, worldY, worldZ), yaw, pitch)
+                    val loc = Location(clipboard, position, yaw, pitch)
                     clipboard.createEntity(loc, base)
                     entitiesSet++
                 }
             } catch (e: Exception) {
                 logger.error(
-                    "Failed to add entity at (${offsetX}, ${offsetY}, ${offsetZ}) with NBT id=${entityNbt.getString("id")}: ${e.message}",
+                    "Failed to add entity at (region-rel: $offsetX,$offsetY,$offsetZ) with NBT id=${entityNbt.getString("id")}: ${e.message}",
                     e
                 )
             }
         }
+
+        logger.info("Entity count: $entitiesSet and clipboard: ${clipboard.entities.size}")
 
         return Triple(blocksSet, tileEntitiesSet, entitiesSet)
     }
