@@ -54,7 +54,6 @@ object EntityHelper {
     }
 
     fun convertNbtListToLinBus(list: ListBinaryTag): LinListTag<out LinTag<*>> {
-        if (list.isEmpty()) return LinListTag.builder(LinTagType.compoundTag()).build()
         return when (list.elementType()) {
             BinaryTagTypes.COMPOUND -> {
                 val b = LinListTag.builder(LinTagType.compoundTag())
@@ -73,27 +72,27 @@ object EntityHelper {
             }
             BinaryTagTypes.FLOAT -> {
                 val b = LinListTag.builder(LinTagType.floatTag())
-                for (i in 0 until list.size()) b.add(org.enginehub.linbus.tree.LinFloatTag.of(list.getFloat(i)))
+                for (i in 0 until list.size()) b.add(LinFloatTag.of(list.getFloat(i)))
                 b.build()
             }
             BinaryTagTypes.DOUBLE -> {
                 val b = LinListTag.builder(LinTagType.doubleTag())
-                for (i in 0 until list.size()) b.add(org.enginehub.linbus.tree.LinDoubleTag.of(list.getDouble(i)))
+                for (i in 0 until list.size()) b.add(LinDoubleTag.of(list.getDouble(i)))
                 b.build()
             }
             BinaryTagTypes.LONG -> {
                 val b = LinListTag.builder(LinTagType.longTag())
-                for (i in 0 until list.size()) b.add(org.enginehub.linbus.tree.LinLongTag.of(list.getLong(i)))
+                for (i in 0 until list.size()) b.add(LinLongTag.of(list.getLong(i)))
                 b.build()
             }
             BinaryTagTypes.BYTE -> {
                 val b = LinListTag.builder(LinTagType.byteTag())
-                for (i in 0 until list.size()) b.add(org.enginehub.linbus.tree.LinByteTag.of(list.getByte(i)))
+                for (i in 0 until list.size()) b.add(LinByteTag.of(list.getByte(i)))
                 b.build()
             }
             BinaryTagTypes.SHORT -> {
                 val b = LinListTag.builder(LinTagType.shortTag())
-                for (i in 0 until list.size()) b.add(org.enginehub.linbus.tree.LinShortTag.of(list.getShort(i)))
+                for (i in 0 until list.size()) b.add(LinShortTag.of(list.getShort(i)))
                 b.build()
             }
             else -> {
