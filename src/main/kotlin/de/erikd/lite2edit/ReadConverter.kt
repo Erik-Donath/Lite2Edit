@@ -3,7 +3,10 @@ package de.erikd.lite2edit
 import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
+import com.sk89q.worldedit.math.Vector3
 import com.sk89q.worldedit.regions.CuboidRegion
+import com.sk89q.worldedit.util.Location
+import net.kyori.adventure.nbt.BinaryTagTypes
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.math.abs
@@ -34,8 +37,8 @@ object ReadConverter {
             val clipboard = BlockArrayClipboard(clipboardRegion)
             clipboard.origin = BlockVector3.at(offset.x, offset.y, offset.z)
 
-            val (blocksSet, tileEntitiesSet) = convertRegion(region, clipboard, 0, 0, 0)
-            logger.info("Converted single Litematica region sized ${sizeX}x${sizeY}x${sizeZ}, set $blocksSet blocks and $tileEntitiesSet tile entities")
+            val (blocksSet, tileEntitiesSet, entitiesSet) = convertRegion(region, clipboard, 0, 0, 0)
+            logger.info("Converted single Litematica region sized ${sizeX}x${sizeY}x${sizeZ}, set $blocksSet blocks with $tileEntitiesSet tile entities and $entitiesSet entities")
             return clipboard
         }
 
@@ -82,6 +85,7 @@ object ReadConverter {
 
         var totalBlocksSet = 0
         var totalTileEntitiesSet = 0
+        var totalEntitiesSet = 0
 
         regions.values.forEach { region ->
             val offset = region.offset
@@ -89,12 +93,13 @@ object ReadConverter {
             val relY = offset.y - minY
             val relZ = offset.z - minZ
 
-            val (blocksSet, tileEntitiesSet) = convertRegion(region, clipboard, relX, relY, relZ)
+            val (blocksSet, tileEntitiesSet, entitiesSet) = convertRegion(region, clipboard, relX, relY, relZ)
             totalBlocksSet += blocksSet
             totalTileEntitiesSet += tileEntitiesSet
+            totalEntitiesSet += entitiesSet
         }
 
-        logger.info("Converted multiple Litematica regions sized ${totalWidth}x${totalHeight}x${totalLength}, set $totalBlocksSet blocks and $totalTileEntitiesSet tile entities")
+        logger.info("Converted multiple Litematica regions sized ${totalWidth}x${totalHeight}x${totalLength}, set $totalBlocksSet blocks with $totalTileEntitiesSet tile entities and $totalEntitiesSet entities")
         return clipboard
     }
 
@@ -104,8 +109,7 @@ object ReadConverter {
         offsetX: Int,
         offsetY: Int,
         offsetZ: Int
-    ): Pair<Int, Int> {
-        // TODO Consider caching the palette conversion if regions are large or accessed multiple times
+    ): Triple<Int, Int, Int> {
         val palette = region.blockStatePalette.map { entry ->
             BlockHelper.parseBlockState(entry.name, entry.properties) // entry.properties now CompoundBinaryTag
         }
@@ -115,6 +119,7 @@ object ReadConverter {
 
         var blocksSet = 0
         var tileEntitiesSet = 0
+        var entitiesSet = 0
 
         // Iterate sequence correctly: destructure Quad
         for (quad in region.blocksWithCoordinates()) {
@@ -141,30 +146,50 @@ object ReadConverter {
                         blocksSet++
                         if (tileEntityNbt != null) tileEntitiesSet++
                     } catch (e: Exception) {
-                        // TODO Evaluate whether to continue after errors or abort
-                        // Log detailed error for better tracing
                         logger.error(
                             "Failed to set block at (${offsetX + x}, ${offsetY + y}, ${offsetZ + z}) ${blockState.asString}",
                             e
                         )
                     }
                 } else {
-                    // TODO Decide how to handle null block states in the palette gracefully
                     logger.warn("Null block state for palette index $paletteIndex")
                 }
             } else {
-                // TODO Validate palette index consistency during schematic load before conversion
                 logger.warn("Invalid palette index $paletteIndex (palette size ${palette.size})")
             }
         }
 
-        /*
-        For the above:
-        - readCompressed -> read
-        - blocksWithCoordinates is a Sequence<Quad>; iterate and destructure per element
-        */
+        for (entityNbt in region.entities) {
+            try {
+                val base = EntityHelper.convertLitematicaEntity(entityNbt)
+                if (base != null) {
+                    val posDouble = entityNbt.getList("Pos", BinaryTagTypes.DOUBLE)
 
-        // TODO Extend to convert entities (not just tile entities) into clipboard or related storage
-        return Pair(blocksSet, tileEntitiesSet)
+                    val (ex, ey, ez) = when {
+                        posDouble.size() >= 3 ->
+                            Triple(posDouble.getDouble(0), posDouble.getDouble(1), posDouble.getDouble(2))
+                        else -> Triple(0.0, 0.0, 0.0)
+                    }
+
+                    val worldX = offsetX + ex
+                    val worldY = offsetY + ey
+                    val worldZ = offsetZ + ez
+
+                    val yaw = if (entityNbt.contains("Yaw")) entityNbt.getFloat("Yaw") else 0f
+                    val pitch = if (entityNbt.contains("Pitch")) entityNbt.getFloat("Pitch") else 0f
+
+                    val loc = Location(null, Vector3.at(worldX, worldY, worldZ), yaw, pitch)
+                    clipboard.createEntity(loc, base)
+                    entitiesSet++
+                }
+            } catch (e: Exception) {
+                logger.error(
+                    "Failed to add entity at (${offsetX}, ${offsetY}, ${offsetZ}) with NBT id=${entityNbt.getString("id")}: ${e.message}",
+                    e
+                )
+            }
+        }
+
+        return Triple(blocksSet, tileEntitiesSet, entitiesSet)
     }
 }
