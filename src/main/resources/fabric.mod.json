@@ -40,8 +40,8 @@
     "modmenu": {
       "links": {
         "modmenu.modrinth": "https://modrinth.com/mod/lite2edit",
-        "modmenu.github": "https://github.com/Erik-Donath/Lite2Edit"
-      }
+      },
+      "update_checker": true
     }
   }
 }

@@ -1,0 +1,6 @@
+{
+  "pack": {
+    "description": "A Fabric mod that lets WorldEdit open Litematica schematic files (.litematic / .ltc). Converts Litematica schematics into WorldEdit clipboards for easy importing and editing.",
+    "pack_format": 1
+  }
+}
