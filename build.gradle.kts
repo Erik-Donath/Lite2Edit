@@ -14,7 +14,7 @@ val minecraftVersion = project.findProperty("minecraft_version") as String? ?: "
 val archiveBaseName = project.findProperty("archives_base_name") as String? ?: "lite2edit"
 
 // Read versions from gradle.properties
-val loaderVersion = project.findProperty("loader_version") as String? ?: "0.16.7"
+val loaderVersion = project.findProperty("loader_version") as String? ?: "0.17.3"
 val kotlinLoaderVersion = project.findProperty("kotlin_loader_version") as String? ?: "1.13.7+kotlin.2.2.21"
 val worldEditVersion = project.findProperty("worldedit_version") as String? ?: "7.3.0"
 
@@ -32,7 +32,9 @@ java {
 
 repositories {
     mavenCentral()
-    maven("https://maven.enginehub.org/repo")
+    maven("https://maven.enginehub.org/repo/")
+    maven("https://maven.fabricmc.net/")
+    maven("https://maven.modrinth.com")
 }
 
 dependencies {

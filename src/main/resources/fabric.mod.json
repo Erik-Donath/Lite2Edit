@@ -39,7 +39,7 @@
   "custom": {
     "modmenu": {
       "links": {
-        "modmenu.modrinth": "https://modrinth.com/mod/lite2edit",
+        "modmenu.modrinth": "https://modrinth.com/mod/lite2edit"
       },
       "update_checker": true
     }

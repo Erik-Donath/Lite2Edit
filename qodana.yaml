@@ -5,7 +5,7 @@ profile:
 
 linter: jetbrains/qodana-jvm-community:2025.2
 
-projectJDK: "17"
+projectJDK: "21"
 
 exclude:
   - name: All
