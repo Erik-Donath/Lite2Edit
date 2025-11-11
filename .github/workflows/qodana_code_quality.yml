@@ -22,18 +22,24 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
+      - name: Build Qodana Docker Image
+        run: |
+          docker build -t qodana-custom -f .github/workflows/Dockerfile.qodana .
+
       - name: Qodana Scan
         id: qodana
         uses: JetBrains/qodana-action@v2025.2
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
+          image: qodana-custom
           pr-mode: ${{ github.event_name == 'pull_request' }}
           use-caches: true
           post-pr-comment: true
           use-annotations: true
           upload-result: true
           push-fixes: 'none'
+
 
       - name: Upload SARIF to GitHub Code Scanning
         if: ${{ always() }}
