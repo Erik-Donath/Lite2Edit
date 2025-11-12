@@ -8,10 +8,10 @@ import java.io.InputStream
 import java.io.OutputStream
 
 class LitematicaSchematicFormater : ClipboardFormat {
-    override fun getName(): String = "Litematic Clipboard Format"
-    override fun getAliases(): Set<String?> = setOf("litematic", "ltc")
+    override fun getName(): String = "Litematica"
+    override fun getAliases(): Set<String?> = setOf("litematic")
     override fun getPrimaryFileExtension(): String = "litematic"
-    override fun getFileExtensions(): Set<String?> = setOf("litematic", "ltc")
+    override fun getFileExtensions(): Set<String?> = setOf("litematic")
 
     override fun getReader(inputStream: InputStream?) = inputStream?.let { stream ->
         object : ClipboardReader {

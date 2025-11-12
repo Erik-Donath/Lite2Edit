@@ -5,7 +5,7 @@
 
 # Lite2Edit
 
-Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic files (.litematic / .ltc). In short: if you have a schematic created with Litematica, Lite2Edit helps WorldEdit read it so you can paste or edit it in Minecraft.
+Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic files (.litematic).
 
 ---
 
@@ -17,7 +17,7 @@ You can see the source code via: [https://github.com/Erik-Donath/lite2edit](http
 
 - What it does: Converts Litematica `.litematic` schematics into a WorldEdit clipboard that you can paste or manipulate.
 - Who it's for: Players and server admins who use Fabric + WorldEdit and want to import Litematica files easily.
-- Simple install: drop the mod JAR into your Fabric `mods/` folder (alongside WorldEdit and required Fabric components) and open `.litematic` files with a WorldEdit-aware tool.
+- Simple install: drop the mod JAR into your Fabric `mods/` folder (alongside WorldEdit and required Fabric components).
 
 ---
 
@@ -26,7 +26,7 @@ You can see the source code via: [https://github.com/Erik-Donath/lite2edit](http
 1. Put the Lite2Edit mod JAR into your Fabric `mods/` folder.
 2. Make sure [Fabric Loader](https://fabricmc.net/), [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin), and [WorldEdit (Fabric build)](https://modrinth.com/plugin/worldedit) are installed.
 3. Start Minecraft (client or server).
-4. Open or import a `.litematic` / `.ltc` file. The schematic will load as a clipboard you can paste and edit. (Note: the `.litematic` writer is currently not implemented.)
+4. Load a `.litematic` file with ```//schematic load "..." litematic```. The schematic will load as a clipboard you can paste and edit. (Note: the `.litematic` writer is currently not implemented.)
 
 If you prefer building from source, run:
 ```bash
@@ -54,7 +54,7 @@ This section explains what the mod does behind the scenes:
     - The mod maps each palette entry (for example "minecraft:oak_log" with properties like facing) to a WorldEdit BlockState. When possible it preserves block properties (like rotation or waterlogged state) so the pasted structure looks correct.
     - The bit-packed block data is decoded to determine which palette entry belongs at each block position.
 
-- Tile entities:
+- Tile entities and entities:
     - Tile-entity NBT (chest contents, sign text, custom block data) is converted into the format WorldEdit expects and attached to the corresponding block when the clipboard is created, so chests and other NBT-bearing blocks keep their data where possible.
 
 - Regions and negative sizes:
