@@ -1,4 +1,4 @@
-package de.erikd.lite2edit
+package de.erikd.lite2edit.litematica
 
 import net.kyori.adventure.nbt.BinaryTag
 import net.kyori.adventure.nbt.BinaryTagIO
@@ -8,8 +8,7 @@ import java.io.InputStream
 import java.io.PushbackInputStream
 import java.util.zip.GZIPInputStream
 
-object NBTHelper {
-
+object FileHelper {
     fun loadLitematic(input: InputStream): CompoundBinaryTag {
         val buffered = BufferedInputStream(input, 64 * 1024)
         val pb = PushbackInputStream(buffered, 4)

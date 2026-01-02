@@ -7,6 +7,7 @@ import com.sk89q.worldedit.math.Vector3
 import com.sk89q.worldedit.regions.CuboidRegion
 import net.kyori.adventure.nbt.BinaryTagTypes
 import com.sk89q.worldedit.util.Location
+import de.erikd.lite2edit.litematica.FileHelper
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import kotlin.math.abs
@@ -15,7 +16,7 @@ object ReadConverter {
     private val logger = LoggerFactory.getLogger(ReadConverter::class.java)
 
     fun read(inputStream: InputStream): Clipboard {
-        val root = NBTHelper.loadLitematic(inputStream)
+        val root = FileHelper.loadLitematic(inputStream)
         val schematic = LitematicaSchematic(root)
         if (schematic.regions.isEmpty()) throw IllegalStateException("No regions found in schematic")
         return convertRegions(schematic.regions)
