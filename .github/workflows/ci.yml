@@ -1,14 +1,15 @@
-name: CI
+name: CI & Code Quality
 
 on:
   push:
     branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
+  workflow_dispatch:
 
 jobs:
-  test:
-    name: Test and Build
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -30,18 +31,54 @@ jobs:
       - name: Run tests
         run: ./gradlew test
 
-      - name: Test build for default MC version
+      - name: Build project
         run: ./gradlew build
 
-      - name: Test POM generation
+      - name: Generate POM file
         run: ./gradlew generatePomFileForMavenPublication
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
         if: success()
+        uses: actions/upload-artifact@v4
         with:
           name: ci-build-artifacts
           path: |
             build/libs/
             build/publications/maven/pom-default.xml
           retention-days: 7
+
+  qodana:
+    name: Qodana Code Quality Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Qodana Scan
+        id: qodana
+        uses: JetBrains/qodana-action@v2025.2
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+        with:
+          pr-mode: ${{ github.event_name == 'pull_request' }}
+          use-caches: true
+          post-pr-comment: true
+          use-annotations: true
+          upload-result: true
+          push-fixes: 'none'
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: ${{ always() }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json
+          category: qodana
