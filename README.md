@@ -25,7 +25,7 @@ You can see the source code via: [https://github.com/Erik-Donath/lite2edit](http
 1. Put the Lite2Edit mod JAR into your Fabric `mods/` folder.
 2. Make sure [Fabric Loader](https://fabricmc.net/), [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin), and [WorldEdit (Fabric build)](https://modrinth.com/plugin/worldedit) are installed.
 3. Start Minecraft (client or server).
-4. Load a `.litematic` file with ```//schematic load "..." litematic```. The schematic will load as a clipboard you can paste and edit. (Note: the `.litematic` writer is currently not implemented.)
+4. Load a `.litematic` file with ```//schematic load "..."```. The schematic will load as a clipboard you can paste and edit. (Note: the `.litematic` writer is currently not implemented.)
 
 If you prefer building from source, run:
 ```bash
