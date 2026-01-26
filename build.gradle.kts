@@ -9,14 +9,14 @@ plugins {
 }
 
 // Dynamic values from project properties (set by workflow or defaults)
-val modVersion = project.findProperty("mod_version") as String? ?: "0.7"
-val minecraftVersion = project.findProperty("minecraft_version") as String? ?: "1.20.4"
-val archiveBaseName = project.findProperty("archives_base_name") as String? ?: "lite2edit"
+val modVersion = project.findProperty("mod_version") ?.toString() ?: error("Missing required 'mod_version' in gradle.properties")
+val minecraftVersion = project.findProperty("minecraft_version") ?.toString() ?: error("Missing required 'minecraft_version' in gradle.properties")
+val archiveBaseName = project.findProperty("archives_base_name") ?.toString() ?: error("Missing required 'archives_base_name' in gradle.properties")
 
 // Read versions from gradle.properties
-val loaderVersion = project.findProperty("loader_version") as String? ?: "0.17.3"
-val kotlinLoaderVersion = project.findProperty("kotlin_loader_version") as String? ?: "1.13.7+kotlin.2.2.21"
-val worldEditVersion = project.findProperty("worldedit_version") as String? ?: "7.3.0"
+val loaderVersion = project.findProperty("loader_version") ?.toString() ?: error("Missing required 'loader_version' in gradle.properties")
+val kotlinLoaderVersion = project.findProperty("kotlin_loader_version") ?.toString() ?: error("Missing required 'kotlin_loader_version' in gradle.properties")
+val worldEditVersion = project.findProperty("worldedit_version") ?.toString() ?: error("Missing required 'worldedit_version' in gradle.properties")
 
 version = modVersion
 group = "io.github.erik-donath"
