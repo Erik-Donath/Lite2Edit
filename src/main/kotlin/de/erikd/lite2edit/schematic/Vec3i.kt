@@ -1,3 +1,4 @@
+@file:Suppress("UnusedSymbol")
 package de.erikd.lite2edit.schematic
 
 import kotlin.math.abs

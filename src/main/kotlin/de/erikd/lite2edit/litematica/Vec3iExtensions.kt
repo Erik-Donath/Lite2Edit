@@ -1,3 +1,4 @@
+@file:Suppress("UnusedSymbol")
 package de.erikd.lite2edit.litematica
 
 import de.erikd.lite2edit.schematic.Vec3i

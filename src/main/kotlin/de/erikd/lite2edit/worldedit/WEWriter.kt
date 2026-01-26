@@ -3,8 +3,6 @@ package de.erikd.lite2edit.worldedit
 import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.regions.CuboidRegion
-import com.sk89q.worldedit.registry.state.BooleanProperty
-import com.sk89q.worldedit.registry.state.IntegerProperty
 import com.sk89q.worldedit.registry.state.Property
 import com.sk89q.worldedit.world.block.BlockState
 import com.sk89q.worldedit.world.block.BlockTypes
@@ -13,9 +11,6 @@ import de.erikd.lite2edit.util.toLinbus
 
 class WEWriter {
     fun write(schematic: Schematic): Clipboard {
-        val min = schematic.min
-        val max = schematic.max
-
         val region = CuboidRegion(
             schematic.min.toBlockVector3(),
             schematic.max.toBlockVector3()
@@ -25,10 +20,7 @@ class WEWriter {
         clipboard.origin = schematic.min.toBlockVector3()
 
         for (block in schematic.blocks) {
-            val state = parseBlockState(block.state.name, block.state.properties)
-            if (state == null) {
-                continue
-            }
+            val state = parseBlockState(block.state.name, block.state.properties) ?: continue
 
             clipboard.setBlock(
                 block.pos.toBlockVector3(),

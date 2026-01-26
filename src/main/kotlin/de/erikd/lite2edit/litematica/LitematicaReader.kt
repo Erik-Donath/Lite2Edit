@@ -2,7 +2,6 @@ package de.erikd.lite2edit.litematica
 
 import de.erikd.lite2edit.schematic.SchematicBuilder
 import net.kyori.adventure.nbt.CompoundBinaryTag
-import org.slf4j.LoggerFactory
 
 /*
 [NBT STRUCTURE] Root compound (5 top‑level keys)
@@ -40,8 +39,6 @@ import org.slf4j.LoggerFactory
 └─ SubVersion (IntBinaryTagImpl)
  */
 object LitematicaReader {
-    private val logger = LoggerFactory.getLogger(LitematicaReader::class.java)
-
     @JvmStatic
     fun read(root: CompoundBinaryTag): de.erikd.lite2edit.schematic.Schematic {
         require(root.contains("Regions")) { "Missing Regions compound" }

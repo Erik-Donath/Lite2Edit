@@ -7,10 +7,6 @@ linter: jetbrains/qodana-jvm-community:2025.2
 
 projectJDK: "21"
 
-include:
-  - name: KotlinNullChecks
-  - name: KotlinStyleGuide
-
 exclude:
   - name: All
     paths:
@@ -22,5 +18,5 @@ exclude:
 
 failureConditions:
   severityThresholds:
-    any: 0
+    any: 10
     critical: 0

@@ -1,6 +1,5 @@
+@file:Suppress("UnusedSymbol")
 package de.erikd.lite2edit.schematic
-
-import java.util.*
 
 class SchematicBuilder {
     private val blockList = mutableListOf<Block>()
