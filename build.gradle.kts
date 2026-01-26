@@ -9,7 +9,7 @@ plugins {
 }
 
 // Dynamic values from project properties (set by workflow or defaults)
-val modVersion = project.findProperty("mod_version") as String? ?: "0.4"
+val modVersion = project.findProperty("mod_version") as String? ?: "0.7"
 val minecraftVersion = project.findProperty("minecraft_version") as String? ?: "1.20.4"
 val archiveBaseName = project.findProperty("archives_base_name") as String? ?: "lite2edit"
 
