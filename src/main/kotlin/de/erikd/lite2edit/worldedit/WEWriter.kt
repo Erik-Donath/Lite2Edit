@@ -40,11 +40,7 @@ class WEWriter {
     }
 
     private fun parseBlockState(name: String, properties: Map<String, Any?>): BlockState? {
-        val blockType = BlockTypes.get(name)
-        if (blockType == null) {
-            return null
-        }
-
+        val blockType = BlockTypes.get(name) ?: return null
         var state = blockType.defaultState
 
         for ((propName, propValue) in properties) {

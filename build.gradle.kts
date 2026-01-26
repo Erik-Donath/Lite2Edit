@@ -29,6 +29,9 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
+    sourceSets["main"].java {
+        setSrcDirs(emptySet<String>())
+    }
     withSourcesJar()
 }
 
