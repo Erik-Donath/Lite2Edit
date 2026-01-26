@@ -65,7 +65,7 @@ jobs:
 
       - name: Qodana Scan
         id: qodana
-        uses: JetBrains/qodana-action@v2025.2
+        uses: JetBrains/qodana-action@v2025.3
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
