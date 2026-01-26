@@ -1,4 +1,4 @@
-@file:Suppress("UnusedSymbol")
+@file:Suppress("unused")
 package de.erikd.lite2edit.schematic
 
 import net.kyori.adventure.nbt.CompoundBinaryTag

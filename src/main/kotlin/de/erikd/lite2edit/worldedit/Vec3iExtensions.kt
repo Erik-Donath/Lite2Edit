@@ -1,4 +1,4 @@
-@file:Suppress("UnusedSymbol")
+@file:Suppress("unused")
 package de.erikd.lite2edit.worldedit
 
 import com.sk89q.worldedit.math.BlockVector3
