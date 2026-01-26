@@ -2,7 +2,7 @@ package de.erikd.lite2edit.schematic
 
 data class Block(
     val pos: Vec3i,
-    val state: BlockState? = null
+    val state: BlockState = BlockState.AIR
 ) {
-    val isAir: Boolean get() = state == null
+    val isAir: Boolean get() = state == BlockState.AIR
 }
