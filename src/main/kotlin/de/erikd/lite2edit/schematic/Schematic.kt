@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package de.erikd.lite2edit.schematic
 
 data class Schematic(
