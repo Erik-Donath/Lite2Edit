@@ -11,6 +11,7 @@ data class Vec3i(val x: Int, val y: Int, val z: Int) {
     operator fun unaryMinus() = Vec3i(-x, -y, -z)
 
     fun abs() = Vec3i(abs(x), abs(y), abs(z))
+    fun total() = abs(x) * abs(y) * abs(z)
 
     companion object {
         val ZERO = Vec3i(0, 0, 0)
