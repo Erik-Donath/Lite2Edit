@@ -1,5 +1,6 @@
 package de.erikd.lite2edit.litematica
 
+import de.erikd.lite2edit.schematic.Schematic
 import de.erikd.lite2edit.schematic.SchematicBuilder
 import net.kyori.adventure.nbt.CompoundBinaryTag
 
@@ -40,7 +41,7 @@ import net.kyori.adventure.nbt.CompoundBinaryTag
  */
 object LitematicaReader {
     @JvmStatic
-    fun read(root: CompoundBinaryTag): de.erikd.lite2edit.schematic.Schematic {
+    fun read(root: CompoundBinaryTag): Schematic {
         require(root.contains("Regions")) { "Missing Regions compound" }
 
         // We do not use:

@@ -11,6 +11,6 @@ object ReadConverter {
     fun read(input: InputStream): Clipboard {
         val rootTag = FileHelper.loadLitematic(input)
         val schematic = LitematicaReader.read(rootTag)
-        return WEWriter().write(schematic)
+        return WEWriter.write(schematic)
     }
 }

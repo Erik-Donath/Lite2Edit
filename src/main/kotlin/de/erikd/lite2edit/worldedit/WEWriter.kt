@@ -9,7 +9,7 @@ import com.sk89q.worldedit.world.block.BlockTypes
 import de.erikd.lite2edit.schematic.*
 import de.erikd.lite2edit.util.toLinbus
 
-class WEWriter {
+object WEWriter {
     fun write(schematic: Schematic): Clipboard {
         val region = CuboidRegion(
             schematic.min.toBlockVector3(),
