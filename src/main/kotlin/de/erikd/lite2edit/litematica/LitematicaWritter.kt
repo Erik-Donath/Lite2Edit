@@ -1,15 +1,12 @@
 package de.erikd.lite2edit.litematica
 
-import com.sk89q.worldedit.WorldEdit
 import de.erikd.lite2edit.schematic.Schematic
 import net.kyori.adventure.nbt.CompoundBinaryTag
-import net.kyori.adventure.nbt.EndBinaryTag
 import net.kyori.adventure.nbt.IntBinaryTag
 import net.kyori.adventure.nbt.ListBinaryTag
 import net.kyori.adventure.nbt.LongArrayBinaryTag
 import net.kyori.adventure.nbt.LongBinaryTag
 import net.kyori.adventure.nbt.StringBinaryTag
-import net.minecraft.SharedConstants
 
 /*
 [NBT STRUCTURE] Root compound (5 top‑level keys)
