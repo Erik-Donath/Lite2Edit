@@ -49,15 +49,14 @@ import net.minecraft.SharedConstants
 object LitematicaWritter {
     const val LITEMATIC_VERSION = 6
     const val LITEMATIC_SUBVERSION = 1
+    const val LITEMATIC_DATA_VERSION = 3700
     const val LITEMATIC_DESCRIPTIONS = "Thanks for using Lite2Edit"
-
-    val dataVersion: Int = SharedConstants.getCurrentVersion().dataVersion.version
 
     fun write(schematic: Schematic): CompoundBinaryTag {
         val size = schematic.size()
 
         val builder = CompoundBinaryTag.builder()
-            .put("MinecraftDataVersion", IntBinaryTag.intBinaryTag(dataVersion))
+            .put("MinecraftDataVersion", IntBinaryTag.intBinaryTag(LITEMATIC_DATA_VERSION))
             .put("Version", IntBinaryTag.intBinaryTag(LITEMATIC_VERSION))
             .put("SubVersion", IntBinaryTag.intBinaryTag(LITEMATIC_SUBVERSION))
             .put("Metadata", CompoundBinaryTag.builder()
