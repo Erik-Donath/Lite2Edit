@@ -43,7 +43,7 @@ import net.kyori.adventure.nbt.StringBinaryTag
 │       └─ Entities (LIST<BinaryTagType[EndBinaryTag 0]>) – 0 elems
 └─ SubVersion (IntBinaryTagImpl)
  */
-object LitematicaWritter {
+object LitematicaWriter {
     const val LITEMATIC_VERSION = 6
     const val LITEMATIC_SUBVERSION = 1
     const val LITEMATIC_DATA_VERSION = 3700
