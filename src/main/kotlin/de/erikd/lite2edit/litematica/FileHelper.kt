@@ -5,8 +5,10 @@ import net.kyori.adventure.nbt.BinaryTagIO
 import net.kyori.adventure.nbt.CompoundBinaryTag
 import java.io.BufferedInputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.io.PushbackInputStream
 import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 object FileHelper {
     fun loadLitematic(input: InputStream): CompoundBinaryTag {
@@ -30,6 +32,17 @@ object FileHelper {
             return root
         } catch (t: Throwable) {
             throw RuntimeException("Failed to read Litematic NBT: ${t.message}", t)
+        }
+    }
+
+    fun saveLitematic(root: CompoundBinaryTag, output: OutputStream) {
+        try {
+            // Litematica files are always GZIP compressed
+            GZIPOutputStream(output).use { gzip ->
+                BinaryTagIO.writer().write(root, gzip)
+            }
+        } catch (t: Throwable) {
+            throw RuntimeException("Failed to save Litematic NBT: ${t.message}", t)
         }
     }
 }
