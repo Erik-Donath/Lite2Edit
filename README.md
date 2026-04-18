@@ -63,7 +63,7 @@ This section explains what the mod does behind the scenes:
 
 - What’s not done yet:
   - Full entity conversion (living mobs and some entity types are not converted; tile entities are supported).
-  - Multi-region export: when saving a clipboard, all blocks are written into a single region named “Unnamed” — the original region names and boundaries are not preserved.
+  - Multi-region export: when saving a clipboard, all blocks are written into a single region named “Unnamed” - the original region names and boundaries are not preserved.
 
 ---
 
