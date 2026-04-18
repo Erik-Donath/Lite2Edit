@@ -9,9 +9,7 @@ import java.io.OutputStream
 object WriteConverter {
     fun write(clipboard: Clipboard, stream: OutputStream) {
         val schematic = WEReader.read(clipboard)
-        println(schematic)
         val root = LitematicaWriter.write(schematic)
-        println(root)
         FileHelper.saveLitematic(root, stream)
     }
 }

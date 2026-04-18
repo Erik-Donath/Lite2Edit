@@ -6,40 +6,42 @@ import org.enginehub.linbus.tree.*
 // TO LINBUS
 
 // Scalar tags
-fun ByteBinaryTag.toLinbus() = LinByteTag.of(value())
-fun ShortBinaryTag.toLinbus() = LinShortTag.of(value())
-fun IntBinaryTag.toLinbus() = LinIntTag.of(value())
-fun LongBinaryTag.toLinbus() = LinLongTag.of(value())
-fun FloatBinaryTag.toLinbus() = LinFloatTag.of(value())
+fun ByteBinaryTag.toLinbus()   = LinByteTag.of(value())
+fun ShortBinaryTag.toLinbus()  = LinShortTag.of(value())
+fun IntBinaryTag.toLinbus()    = LinIntTag.of(value())
+fun LongBinaryTag.toLinbus()   = LinLongTag.of(value())
+fun FloatBinaryTag.toLinbus()  = LinFloatTag.of(value())
 fun DoubleBinaryTag.toLinbus() = LinDoubleTag.of(value())
 fun StringBinaryTag.toLinbus() = LinStringTag.of(value())
 
 // Array tags
-fun ByteArrayBinaryTag.toLinbus() = LinByteArrayTag.of(*value())
-fun IntArrayBinaryTag.toLinbus() = LinIntArrayTag.of(*value())
-fun LongArrayBinaryTag.toLinbus() = LinLongArrayTag.of(*value())
+fun ByteArrayBinaryTag.toLinbus()  = LinByteArrayTag.of(*value())
+fun IntArrayBinaryTag.toLinbus()   = LinIntArrayTag.of(*value())
+fun LongArrayBinaryTag.toLinbus()  = LinLongArrayTag.of(*value())
 
 // Complex tags
 fun CompoundBinaryTag.toLinbus(): LinCompoundTag {
     val builder = LinCompoundTag.builder()
-    keySet().forEach { key ->
-        builder.put(key, get(key)!!.toLinbus())
-    }
+    keySet().forEach { key -> builder.put(key, get(key)!!.toLinbus()) }
     return builder.build()
 }
+
 fun ListBinaryTag.toLinbus(): LinListTag<out LinTag<*>> {
+    if (size() == 0) return LinListTag.builder(LinTagType.byteTag()).build()
+
     return when (val elementType = elementType()) {
-        BinaryTagTypes.BYTE      -> buildList(this) { LinListTag.builder(LinTagType.byteTag()) }
-        BinaryTagTypes.SHORT     -> buildList(this) { LinListTag.builder(LinTagType.shortTag()) }
-        BinaryTagTypes.INT       -> buildList(this) { LinListTag.builder(LinTagType.intTag()) }
-        BinaryTagTypes.LONG      -> buildList(this) { LinListTag.builder(LinTagType.longTag()) }
-        BinaryTagTypes.FLOAT     -> buildList(this) { LinListTag.builder(LinTagType.floatTag()) }
-        BinaryTagTypes.DOUBLE    -> buildList(this) { LinListTag.builder(LinTagType.doubleTag()) }
-        BinaryTagTypes.STRING    -> buildList(this) { LinListTag.builder(LinTagType.stringTag()) }
-        BinaryTagTypes.COMPOUND  -> buildList(this) { LinListTag.builder(LinTagType.compoundTag()) }
-        BinaryTagTypes.BYTE_ARRAY-> buildList(this) { LinListTag.builder(LinTagType.byteArrayTag()) }
-        BinaryTagTypes.INT_ARRAY -> buildList(this) { LinListTag.builder(LinTagType.intArrayTag()) }
-        BinaryTagTypes.LONG_ARRAY-> buildList(this) { LinListTag.builder(LinTagType.longArrayTag()) }
+        BinaryTagTypes.BYTE       -> buildList(this) { LinListTag.builder(LinTagType.byteTag()) }
+        BinaryTagTypes.SHORT      -> buildList(this) { LinListTag.builder(LinTagType.shortTag()) }
+        BinaryTagTypes.INT        -> buildList(this) { LinListTag.builder(LinTagType.intTag()) }
+        BinaryTagTypes.LONG       -> buildList(this) { LinListTag.builder(LinTagType.longTag()) }
+        BinaryTagTypes.FLOAT      -> buildList(this) { LinListTag.builder(LinTagType.floatTag()) }
+        BinaryTagTypes.DOUBLE     -> buildList(this) { LinListTag.builder(LinTagType.doubleTag()) }
+        BinaryTagTypes.STRING     -> buildList(this) { LinListTag.builder(LinTagType.stringTag()) }
+        BinaryTagTypes.COMPOUND   -> buildList(this) { LinListTag.builder(LinTagType.compoundTag()) }
+        BinaryTagTypes.LIST       -> buildList(this) { LinListTag.builder(LinTagType.listTag<LinByteTag>()) }
+        BinaryTagTypes.BYTE_ARRAY -> buildList(this) { LinListTag.builder(LinTagType.byteArrayTag()) }
+        BinaryTagTypes.INT_ARRAY  -> buildList(this) { LinListTag.builder(LinTagType.intArrayTag()) }
+        BinaryTagTypes.LONG_ARRAY -> buildList(this) { LinListTag.builder(LinTagType.longArrayTag()) }
         else -> throw IllegalArgumentException("Unsupported list element type: $elementType")
     }
 }
@@ -57,7 +59,7 @@ fun BinaryTag.toLinbus(): LinTag<*> = when (this) {
     is LongArrayBinaryTag -> toLinbus()
     is CompoundBinaryTag  -> toLinbus()
     is ListBinaryTag      -> toLinbus()
-    else -> throw IllegalArgumentException("Unsupported: ${this::class.java}")
+    else -> throw IllegalArgumentException("Unsupported tag type: ${this::class.java}")
 }
 
 private inline fun <reified T : LinTag<*>> buildList(
@@ -74,7 +76,7 @@ private inline fun <reified T : LinTag<*>> buildList(
     return mutable.build()
 }
 
-// Acess Values
+// Access Values
 
 fun BinaryTag.value(): Any? = when (this) {
     is ByteBinaryTag      -> value()

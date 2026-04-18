@@ -44,11 +44,9 @@ object LitematicaReader {
     fun read(root: CompoundBinaryTag): Schematic {
         require(root.contains("Regions")) { "Missing Regions compound" }
 
-        // We do not use:
-        //require(root.contains("Metadata")) { "Missing Metadata compound" }
-        //require(root.contains("MinecraftDataVersion")) { "Missing MinecraftDataVersion compound" }
-        //require(root.contains("Version")) { "Missing Version compound" }
-        //require(root.contains("SubVersion")) { "Missing SubVersion compound" }
+        // Metadata, MinecraftDataVersion, Version and SubVersion are intentionally not
+        // required here: Lite2Edit only needs the Regions data to reconstruct blocks and
+        // entities, so partial or minimally-valid files can still be imported.
 
         val builder = SchematicBuilder()
         val regions = root.getCompound("Regions")

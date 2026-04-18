@@ -25,7 +25,8 @@ You can see the source code via: [https://github.com/Erik-Donath/lite2edit](http
 1. Put the Lite2Edit mod JAR into your Fabric `mods/` folder.
 2. Make sure [Fabric Loader](https://fabricmc.net/), [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin), and [WorldEdit (Fabric build)](https://modrinth.com/plugin/worldedit) are installed.
 3. Start Minecraft (client or server).
-4. Load a `.litematic` file with ```//schematic load "..."```. The schematic will load as a clipboard you can paste and edit. (Note: the `.litematic` writer is currently not implemented.)
+4. Load a `.litematic` file with ```//schematic load "..."```. The schematic will load as a clipboard you can paste and edit.
+5. Save a WorldEdit clipboard back to a `.litematic` file with ```//schematic save -f litematica "..."```.
 
 If you prefer building from source, run:
 ```bash
@@ -43,26 +44,26 @@ This section explains what the mod does behind the scenes:
 - Litematica files store world pieces as NBT data (a structured binary format Minecraft uses). Schematics contain regions made of blocks, a palette that lists unique block types used, tile-entity data (for chests, signs, furnaces, etc.), and optionally entities.
 
 - Lite2Edit reads the Litematica file and parses the NBT structure. It understands:
-    - The schematic metadata (name, author, timestamps).
-    - One or more regions, each with a position and size.
-    - The block palette (a list of block names and property sets).
-    - The block data as a compact, bit-packed list of palette indexes.
-    - Tile entities and entities stored with their coordinates and NBT.
+  - The schematic metadata (name, author, timestamps).
+  - One or more regions, each with a position and size.
+  - The block palette (a list of block names and property sets).
+  - The block data as a compact, bit-packed list of palette indexes.
+  - Tile entities and entities stored with their coordinates and NBT.
 
 - Block conversion:
-    - The mod maps each palette entry (for example "minecraft:oak_log" with properties like facing) to a WorldEdit BlockState. When possible it preserves block properties (like rotation or waterlogged state) so the pasted structure looks correct.
-    - The bit-packed block data is decoded to determine which palette entry belongs at each block position.
+  - The mod maps each palette entry (for example "minecraft:oak_log" with properties like facing) to a WorldEdit BlockState. When possible it preserves block properties (like rotation or waterlogged state) so the pasted structure looks correct.
+  - The bit-packed block data is decoded to determine which palette entry belongs at each block position.
 
 - Tile entities and entities:
-    - Tile-entity NBT (chest contents, sign text, custom block data) is converted into the format WorldEdit expects and attached to the corresponding block when the clipboard is created, so chests and other NBT-bearing blocks keep their data where possible.
+  - Tile-entity NBT (chest contents, sign text, custom block data) is converted into the format WorldEdit expects and attached to the corresponding block when the clipboard is created, so chests and other NBT-bearing blocks keep their data where possible.
 
 - Regions and negative sizes:
-    - Litematica can store multiple named regions in a single file. Lite2Edit can combine multiple regions into a single WorldEdit clipboard by computing a bounding box that contains all regions.
-    - Some regions are defined with negative dimensions; the mod normalizes these so blocks end up in the correct positions in the clipboard.
+  - Litematica can store multiple named regions in a single file. Lite2Edit can combine multiple regions into a single WorldEdit clipboard by computing a bounding box that contains all regions.
+  - Some regions are defined with negative dimensions; the mod normalizes these so blocks end up in the correct positions in the clipboard.
 
 - What’s not done yet:
-    - Exporting/saving WorldEdit clipboards back into `.litematic` files (the writer is currently not implemented).
-    - Full entity conversion (living mobs and some entity types are not converted; tile entities are supported).
+  - Full entity conversion (living mobs and some entity types are not converted; tile entities are supported).
+  - Multi-region export: when saving a clipboard, all blocks are written into a single region named “Unnamed” — the original region names and boundaries are not preserved.
 
 ---
 
@@ -79,8 +80,8 @@ This section explains what the mod does behind the scenes:
 
 - License: MIT see [LICENSE.txt](LICENSE.txt) in this repository.
 - Contributions: Pull requests and issues are welcome. If you want to:
-    - Add the `.litematic` writer (export support), include an example schematic to validate round-trip correctness.
-    - Improve block/property mapping or tile-entity handling, keep changes small and document behavior differences.
+  - Add the `.litematic` writer (export support), include an example schematic to validate round-trip correctness.
+  - Improve block/property mapping or tile-entity handling, keep changes small and document behavior differences.
 
 To contribute:
 1. Fork the repository.

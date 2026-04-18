@@ -9,8 +9,8 @@ class BlockBuilder {
 
     fun position(x: Int, y: Int, z: Int) = apply { pos = Vec3i(x, y, z) }
     fun position(position : Vec3i) = apply { pos = position }
-    fun state(name: String, properties: Map<String, Any?> = emptyMap(), nbt: CompoundBinaryTag? = null) = apply {
-        state = BlockState.of(name, properties, nbt)
+    fun state(name: String, properties: Map<String, String> = emptyMap(), nbt: CompoundBinaryTag? = null) = apply {
+        state = BlockState(name, properties, nbt)
     }
 
     fun air() = apply { state = BlockState.AIR }

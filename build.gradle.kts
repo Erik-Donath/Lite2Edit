@@ -2,24 +2,22 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.2.21"
+    kotlin("jvm") version "2.1.21"
     id("fabric-loom") version "1.11.8"
     id("maven-publish")
     id("com.modrinth.minotaur") version "2.+"
 }
 
-// Dynamic values from project properties (set by workflow or defaults)
-val modVersion = project.findProperty("mod_version") ?.toString() ?: error("Missing required 'mod_version' in gradle.properties")
-val minecraftVersion = project.findProperty("minecraft_version") ?.toString() ?: error("Missing required 'minecraft_version' in gradle.properties")
-val archiveBaseName = project.findProperty("archives_base_name") ?.toString() ?: error("Missing required 'archives_base_name' in gradle.properties")
-
-// Read versions from gradle.properties
-val loaderVersion = project.findProperty("loader_version") ?.toString() ?: error("Missing required 'loader_version' in gradle.properties")
-val kotlinLoaderVersion = project.findProperty("kotlin_loader_version") ?.toString() ?: error("Missing required 'kotlin_loader_version' in gradle.properties")
-val worldEditVersion = project.findProperty("worldedit_version") ?.toString() ?: error("Missing required 'worldedit_version' in gradle.properties")
+// Values from gradle.properties
+val modVersion        = project.findProperty("mod_version")         ?.toString() ?: error("Missing 'mod_version' in gradle.properties")
+val minecraftVersion  = project.findProperty("minecraft_version")   ?.toString() ?: error("Missing 'minecraft_version' in gradle.properties")
+val archiveBaseName   = project.findProperty("archives_base_name")  ?.toString() ?: error("Missing 'archives_base_name' in gradle.properties")
+val loaderVersion     = project.findProperty("loader_version")      ?.toString() ?: error("Missing 'loader_version' in gradle.properties")
+val kotlinLoaderVersion = project.findProperty("kotlin_loader_version")?.toString() ?: error("Missing 'kotlin_loader_version' in gradle.properties")
+val worldEditVersion  = project.findProperty("worldedit_version")   ?.toString() ?: error("Missing 'worldedit_version' in gradle.properties")
 
 version = modVersion
-group = "io.github.erik-donath"
+group   = "io.github.erik-donath"
 
 base {
     archivesName.set(archiveBaseName)
@@ -53,7 +51,7 @@ dependencies {
     // WorldEdit core API
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${worldEditVersion}")
 
-    // Runtime dependencies
+    // Bundled runtime dependencies
     implementation("net.kyori:adventure-nbt:4.25.0")
     implementation("net.kyori:adventure-api:4.25.0")
     implementation("net.kyori:examination-api:1.3.0")
@@ -77,21 +75,21 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.processResources {
-    inputs.property("version", project.version)
-    inputs.property("loader_version", loaderVersion)
-    inputs.property("minecraft_version", minecraftVersion)
+    inputs.property("version",               project.version)
+    inputs.property("loader_version",        loaderVersion)
+    inputs.property("minecraft_version",     minecraftVersion)
     inputs.property("kotlin_loader_version", kotlinLoaderVersion)
-    inputs.property("worldedit_version", worldEditVersion)
+    inputs.property("worldedit_version",     worldEditVersion)
 
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
         expand(
-            "version" to project.version,
-            "loader_version" to loaderVersion,
-            "minecraft_version" to minecraftVersion,
+            "version"               to project.version,
+            "loader_version"        to loaderVersion,
+            "minecraft_version"     to minecraftVersion,
             "kotlin_loader_version" to kotlinLoaderVersion,
-            "worldedit_version" to worldEditVersion
+            "worldedit_version"     to worldEditVersion
         )
     }
 }
@@ -100,34 +98,28 @@ modrinth {
     token.set(System.getenv("MODRINTH_TOKEN"))
     projectId.set(System.getenv("MODRINTH_ID") ?: "")
 
-    // Version configuration
     versionNumber.set("lite2edit-fabric-${minecraftVersion}-${modVersion}")
     versionName.set("Lite2Edit Fabric $modVersion for Minecraft $minecraftVersion")
     versionType.set("release")
 
-    // File to upload
     uploadFile.set(tasks.remapJar)
 
-    // Game versions and loaders
     gameVersions.addAll(minecraftVersion)
     loaders.add("fabric")
 
-    // Dependencies
     dependencies {
         required.project("fabric-language-kotlin")
         required.project("worldedit")
     }
-
-    failSilently.set(true)
 }
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
-            groupId = "io.github.erik-donath"
+            groupId    = "io.github.erik-donath"
             artifactId = "lite2edit-mc${minecraftVersion}"
-            version = modVersion
+            version    = modVersion
 
             pom {
                 name.set("Lite2Edit")
@@ -177,7 +169,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/Erik-Donath/lite2edit")
+            url  = uri("https://maven.pkg.github.com/Erik-Donath/lite2edit")
             credentials {
                 username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("gpr.user") as String?
                 password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("gpr.token") as String?

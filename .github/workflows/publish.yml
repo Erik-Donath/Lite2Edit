@@ -11,7 +11,6 @@ concurrency:
 env:
   JAVA_VERSION: 21
   MINECRAFT_VERSIONS: '["1.20.2", "1.20.4", "1.20.5", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.7", "1.21.8", "1.21.9", "1.21.10"]'
-  DEFAULT_MC_VERSION: "1.20.4"
 
 jobs:
   extract-metadata:
@@ -32,132 +31,9 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version: $VERSION"
 
-      - name: Expose matrix JSON
-        id: mc
-        run: |
-          echo 'minecraft_versions=${{ env.MINECRAFT_VERSIONS }}' >> "$GITHUB_OUTPUT"
-
-
-  build:
-    name: Build Mod JARs
+  build-and-publish:
+    name: Build & Publish (${{ matrix.minecraft_version }})
     needs: extract-metadata
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Build mod JAR for Minecraft ${{ matrix.minecraft_version }}
-        run: |
-          ./gradlew clean remapJar \
-            -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
-            -Pminecraft_version=${{ matrix.minecraft_version }} \
-            --no-daemon
-
-      - name: Rename JAR with proper versioning
-        run: |
-          cd build/libs
-          ORIGINAL_JAR=$(find . -name "lite2edit-*.jar" -not -name "*-sources.jar" | head -1)
-          if [ -n "$ORIGINAL_JAR" ]; then
-            NEW_NAME="lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar"
-            mv "$ORIGINAL_JAR" "$NEW_NAME"
-            echo "Renamed $ORIGINAL_JAR to $NEW_NAME"
-            ls -la
-          else
-            echo "Error: No JAR file found!"
-            ls -la
-            exit 1
-          fi
-
-      - name: Upload mod JARs for ${{ matrix.minecraft_version }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}
-          path: build/libs/lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar
-
-  attach-to-release:
-    name: Attach JARs to Release
-    needs: [extract-metadata, build]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download all mod JARs
-        uses: actions/download-artifact@v4
-        with:
-          pattern: lite2edit-*
-          merge-multiple: true
-
-      - name: List downloaded JAR files
-        run: |
-          echo "Downloaded mod JARs:"
-          find . -name "*.jar" -type f | sort
-          echo "File details:"
-          ls -la *.jar
-
-      - name: Attach all mod JARs to release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.release.tag_name }}
-          files: "lite2edit-*.jar"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fail_on_unmatched_files: true
-
-  publish-modrinth:
-    name: Publish to Modrinth
-    needs: [extract-metadata]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        minecraft_version: ${{ fromJson(needs.extract-metadata.outputs.minecraft_versions) }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Build and publish to Modrinth using Minotaur
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
-        run: |
-          ./gradlew modrinth \
-            -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
-            -Pminecraft_version=${{ matrix.minecraft_version }} \
-            --no-daemon
-
-  publish-github-packages:
-    name: Publish to GitHub Packages
-    needs: [extract-metadata]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -183,7 +59,44 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build and publish to GitHub Packages
+      - name: Build mod JAR
+        run: |
+          ./gradlew clean remapJar \
+            -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
+            -Pminecraft_version=${{ matrix.minecraft_version }} \
+            --no-daemon
+
+      - name: Rename JAR with proper versioning
+        run: |
+          cd build/libs
+          ORIGINAL_JAR=$(find . -name "lite2edit-*.jar" -not -name "*-sources.jar" | head -1)
+          if [ -n "$ORIGINAL_JAR" ]; then
+            NEW_NAME="lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar"
+            mv "$ORIGINAL_JAR" "$NEW_NAME"
+            echo "Renamed $ORIGINAL_JAR to $NEW_NAME"
+          else
+            echo "Error: No JAR file found!"
+            ls -la
+            exit 1
+          fi
+
+      - name: Upload JAR as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}
+          path: build/libs/lite2edit-fabric-${{ matrix.minecraft_version }}-${{ needs.extract-metadata.outputs.version }}.jar
+
+      - name: Publish to Modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_ID: ${{ secrets.MODRINTH_ID }}
+        run: |
+          ./gradlew modrinth \
+            -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
+            -Pminecraft_version=${{ matrix.minecraft_version }} \
+            --no-daemon
+
+      - name: Publish to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
@@ -192,3 +105,30 @@ jobs:
             -Pmod_version=${{ needs.extract-metadata.outputs.version }} \
             -Pminecraft_version=${{ matrix.minecraft_version }} \
             --no-daemon
+
+  attach-to-release:
+    name: Attach JARs to Release
+    needs: [extract-metadata, build-and-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all mod JARs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lite2edit-*
+          merge-multiple: true
+
+      - name: List downloaded JAR files
+        run: |
+          echo "Downloaded mod JARs:"
+          find . -name "*.jar" -type f | sort
+
+      - name: Attach all mod JARs to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: "lite2edit-*.jar"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true

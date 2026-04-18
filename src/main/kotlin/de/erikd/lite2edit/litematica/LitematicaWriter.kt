@@ -1,12 +1,7 @@
 package de.erikd.lite2edit.litematica
 
 import de.erikd.lite2edit.schematic.Schematic
-import net.kyori.adventure.nbt.CompoundBinaryTag
-import net.kyori.adventure.nbt.IntBinaryTag
-import net.kyori.adventure.nbt.ListBinaryTag
-import net.kyori.adventure.nbt.LongArrayBinaryTag
-import net.kyori.adventure.nbt.LongBinaryTag
-import net.kyori.adventure.nbt.StringBinaryTag
+import net.kyori.adventure.nbt.*
 
 /*
 [NBT STRUCTURE] Root compound (5 top‑level keys)
@@ -43,48 +38,39 @@ import net.kyori.adventure.nbt.StringBinaryTag
 │       └─ Entities (LIST<BinaryTagType[EndBinaryTag 0]>) – 0 elems
 └─ SubVersion (IntBinaryTagImpl)
  */
+
 object LitematicaWriter {
-    const val LITEMATIC_VERSION = 6
-    const val LITEMATIC_SUBVERSION = 1
-    const val LITEMATIC_DATA_VERSION = 3700
-    const val LITEMATIC_DESCRIPTIONS = "Thanks for using Lite2Edit"
+    private const val VERSION      = 6
+    private const val SUB_VERSION  = 1
+    private const val DESCRIPTION  = "Thanks for using Lite2Edit"
+
+    private const val DATA_VERSION = 3700
 
     fun write(schematic: Schematic): CompoundBinaryTag {
-        val size = schematic.size()
+        val size   = schematic.size
+        val now    = System.currentTimeMillis()
+        val region = RegionWriter.parse(schematic)
 
-        val builder = CompoundBinaryTag.builder()
-            .put("MinecraftDataVersion", IntBinaryTag.intBinaryTag(LITEMATIC_DATA_VERSION))
-            .put("Version", IntBinaryTag.intBinaryTag(LITEMATIC_VERSION))
-            .put("SubVersion", IntBinaryTag.intBinaryTag(LITEMATIC_SUBVERSION))
+        return CompoundBinaryTag.builder()
+            .put("MinecraftDataVersion", IntBinaryTag.intBinaryTag(DATA_VERSION))
+            .put("Version",              IntBinaryTag.intBinaryTag(VERSION))
+            .put("SubVersion",           IntBinaryTag.intBinaryTag(SUB_VERSION))
             .put("Metadata", CompoundBinaryTag.builder()
-                .put("TimeModified", LongBinaryTag.longBinaryTag(System.currentTimeMillis()))
-                .put("TimeCreated", LongBinaryTag.longBinaryTag(System.currentTimeMillis()))
+                .put("TimeModified",  LongBinaryTag.longBinaryTag(now))
+                .put("TimeCreated",   LongBinaryTag.longBinaryTag(now))
                 .put("EnclosingSize", size.toLitematicaNbt())
-                .put("Description", StringBinaryTag.stringBinaryTag(LITEMATIC_DESCRIPTIONS))
-                .put("TotalBlocks", IntBinaryTag.intBinaryTag(size.total()))
-                .put("RegionCount", IntBinaryTag.intBinaryTag(1))
-                .put("TotalVolume", IntBinaryTag.intBinaryTag(size.total()))
-                .put("Author", StringBinaryTag.stringBinaryTag("Lite2Edit"))
-                .put("Name", StringBinaryTag.stringBinaryTag("unnamed"))
+                .put("Description",   StringBinaryTag.stringBinaryTag(DESCRIPTION))
+                .put("TotalBlocks",   IntBinaryTag.intBinaryTag(schematic.blocks.count { !it.isAir }))
+                .put("RegionCount",   IntBinaryTag.intBinaryTag(1))
+                .put("TotalVolume",   IntBinaryTag.intBinaryTag(size.volume().toInt()))
+                .put("Author",        StringBinaryTag.stringBinaryTag("Lite2Edit"))
+                .put("Name",          StringBinaryTag.stringBinaryTag("Lite2Edit Export"))
                 .build()
             )
-
-        val region = CompoundBinaryTag.builder()
-            .put("BlockStates", LongArrayBinaryTag.longArrayBinaryTag())
-            .put("PendingBlockTicks", ListBinaryTag.empty())
-            .put("PendingFluidTicks", ListBinaryTag.empty())
-            .put("Position", schematic.min.toLitematicaNbt())
-            .put("Size", size.toLitematicaNbt())
-            .put("BlockStatePalette", ListBinaryTag.empty())
-            .put("TileEntities", ListBinaryTag.empty())
-            .put("Entities", ListBinaryTag.empty())
-
-
-        builder.put("Regions", CompoundBinaryTag.builder()
-            .put("Unnamed", region.build())
+            .put("Regions", CompoundBinaryTag.builder()
+                .put("Unnamed", region)
+                .build()
+            )
             .build()
-        )
-
-        return builder.build()
     }
 }
