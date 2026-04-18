@@ -4,7 +4,6 @@ import com.sk89q.worldedit.entity.BaseEntity
 import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.util.concurrency.LazyReference
-import org.enginehub.linbus.tree.LinCompoundTag
 import com.sk89q.worldedit.regions.CuboidRegion
 import com.sk89q.worldedit.registry.state.Property
 import com.sk89q.worldedit.util.Location
@@ -54,7 +53,7 @@ object WEWriter {
                 continue
             }
 
-            val baseEntity = BaseEntity(entityType, LazyReference.from<LinCompoundTag> { nbt.toLinbus() })
+            val baseEntity = BaseEntity(entityType, LazyReference.from { nbt.toLinbus() })
             clipboard.createEntity(Location(clipboard, x, y, z), baseEntity)
         }
 
