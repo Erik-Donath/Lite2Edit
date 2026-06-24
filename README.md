@@ -1,8 +1,9 @@
+# Lite2Edit
 [![CI](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/ci.yml)
 [![Automatic Dependency Submission](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/dependency-graph/auto-submission/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/dependency-graph/auto-submission)
 [![Build and Publish Release](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/publish.yml/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/publish.yml)
 
-# Lite2Edit
+[![Icon](https://github.com/Erik-Donath/Lite2Edit/blob/master/Lite2Edit.png?raw=true)](#)
 
 Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic files (.litematic).
 
@@ -78,7 +79,7 @@ This section explains what the mod does behind the scenes:
 
 ## License & contributing
 
-- License: MIT see [LICENSE.txt](LICENSE.txt) in this repository.
+- License: MIT see [LICENSE](https://github.com/Erik-Donath/Lite2Edit/blob/master/LICENSE.txt) in this repository.
 - Contributions: Pull requests and issues are welcome. If you want to:
   - Add the `.litematic` writer (export support), include an example schematic to validate round-trip correctness.
   - Improve block/property mapping or tile-entity handling, keep changes small and document behavior differences.
