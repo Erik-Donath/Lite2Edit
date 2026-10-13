@@ -5,39 +5,33 @@ import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardWriter
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.Locale
+import java.util.zip.GZIPInputStream
 
 class LitematicaSchematicFormatter : ClipboardFormat {
-    override fun getName(): String = "Litematica"
-    override fun getAliases(): Set<String> = setOf("litematica", "litematic", "ltc")
-    override fun getPrimaryFileExtension(): String = "litematic"
-    override fun getFileExtensions(): Set<String> = setOf("litematic", "ltc")
+    override fun getName(): String = FORMAT_NAME
+    override fun getAliases(): Set<String> = ALIASES
+    override fun getPrimaryFileExtension(): String = PRIMARY_EXTENSION
+    override fun getFileExtensions(): Set<String> = FILE_EXTENSIONS
 
     override fun isFormat(file: File?): Boolean =
-        file?.name?.lowercase()?.let { name ->
+        file?.name?.lowercase(Locale.ROOT)?.let { name ->
             getFileExtensions().any { name.endsWith(".$it") }
         } == true
 
     override fun isFormat(inputStream: InputStream?): Boolean =
         inputStream?.let { stream ->
-            runCatching {
-                // Use only the first few bytes: check GZIP magic (1F 8B) and then
-                // read just enough of the NBT header to verify the root compound
-                // name contains a known Litematica key — far cheaper than a full parse.
-                val buf = stream.readNBytes(256)
-                if (buf.size < 3) return@runCatching false
-
-                val isGzip = buf[0] == 0x1f.toByte() && buf[1] == 0x8b.toByte()
-                if (!isGzip) return@runCatching false
-
-                // Decompress the small header slice and look for Litematica root keys
-                val inflated = java.util.zip.GZIPInputStream(buf.inputStream()).use { it.readBytes() }
-                val header = String(inflated, Charsets.ISO_8859_1)
-                // A valid Litematica file always contains all four of these keys
-                listOf("Version", "SubVersion", "MinecraftDataVersion", "Metadata")
-                    .all { header.contains(it) }
-            }.getOrDefault(false)
+            try {
+                val header = GZIPInputStream(stream).readNBytes(HEADER_SIZE)
+                val headerText = String(header, Charsets.ISO_8859_1)
+                header.firstOrNull() == COMPOUND_TAG_ID &&
+                    IDENTIFYING_TAGS.all(headerText::contains)
+            } catch (_: IOException) {
+                false
+            }
         } ?: false
 
     override fun getReader(inputStream: InputStream?): ClipboardReader =
@@ -55,4 +49,14 @@ class LitematicaSchematicFormatter : ClipboardFormat {
                 override fun close() = stream.close()
             }
         } ?: throw IllegalArgumentException("OutputStream cannot be null")
+
+    private companion object {
+        const val FORMAT_NAME = "Litematica"
+        const val PRIMARY_EXTENSION = "litematic"
+        const val HEADER_SIZE = 256
+        const val COMPOUND_TAG_ID: Byte = 10
+        val ALIASES = setOf("litematica", "litematic", "ltc")
+        val FILE_EXTENSIONS = setOf("litematic", "ltc")
+        val IDENTIFYING_TAGS = listOf("Version", "Metadata")
+    }
 }

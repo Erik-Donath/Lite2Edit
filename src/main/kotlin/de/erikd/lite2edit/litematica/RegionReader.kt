@@ -1,6 +1,7 @@
 package de.erikd.lite2edit.litematica
 
-import de.erikd.lite2edit.schematic.BlockBuilder
+import de.erikd.lite2edit.schematic.Block
+import de.erikd.lite2edit.schematic.BlockState
 import de.erikd.lite2edit.schematic.SchematicBuilder
 import de.erikd.lite2edit.schematic.Vec3i
 import de.erikd.lite2edit.util.value
@@ -35,6 +36,7 @@ object RegionReader {
 
         val palette = regionTag.getList("BlockStatePalette", BinaryTagTypes.COMPOUND)
 
+        val paletteSize = palette.size()
         val tileEntitiesMap: Map<Vec3i, CompoundBinaryTag> =
             regionTag.getList("TileEntities", BinaryTagTypes.COMPOUND)
                 .map { it as CompoundBinaryTag }
@@ -42,7 +44,7 @@ object RegionReader {
 
         val blockIds = BlockStatePacking.decode(
             regionTag.getLongArray("BlockStates"),
-            palette.size(),
+            paletteSize,
             totalBlocks
         )
 
@@ -54,7 +56,7 @@ object RegionReader {
                 y = i / (sizeAbs.x * sizeAbs.z)
             )
 
-            if (id !in 0 until palette.size()) continue
+            if (id !in 0 until paletteSize) continue
             val state = palette[id] as CompoundBinaryTag
             val name  = state.getString("Name")
 
@@ -67,14 +69,14 @@ object RegionReader {
             }
 
             builder.block(
-                BlockBuilder()
-                    .position(blockPos + offset)
-                    .state(
-                        name       = name,
+                Block(
+                    pos = blockPos + offset,
+                    state = BlockState(
+                        name = name,
                         properties = properties,
-                        nbt        = tileEntitiesMap[blockPos]
+                        nbt = tileEntitiesMap[blockPos]
                     )
-                    .build()
+                )
             )
         }
 

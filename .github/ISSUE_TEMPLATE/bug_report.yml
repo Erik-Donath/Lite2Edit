@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a reproducible problem with Lite2Edit.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check existing issues first. Remove private information from logs before sharing them.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest set of steps that reproduces the problem.
+      placeholder: |
+        1. Run ...
+        2. Load ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: lite2edit-version
+    attributes:
+      label: Lite2Edit version
+    validations:
+      required: true
+  - type: input
+    id: minecraft-version
+    attributes:
+      label: Minecraft version
+    validations:
+      required: true
+  - type: input
+    id: fabric-loader-version
+    attributes:
+      label: Fabric Loader version
+    validations:
+      required: true
+  - type: input
+    id: fabric-language-kotlin-version
+    attributes:
+      label: Fabric Language Kotlin version
+    validations:
+      required: true
+  - type: input
+    id: worldedit-version
+    attributes:
+      label: WorldEdit version
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste relevant output in a fenced code block or attach a file after checking it for private information.
+      render: text
+    validations:
+      required: false

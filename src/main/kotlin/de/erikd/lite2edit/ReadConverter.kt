@@ -1,9 +1,9 @@
 package de.erikd.lite2edit
 
-import de.erikd.lite2edit.litematica.FileHelper          // GZIP‑aware NBT loader
-import de.erikd.lite2edit.litematica.LitematicaReader    // Turns NBT → Schematic
-import de.erikd.lite2edit.worldedit.WEWriter             // Turns Schematic → Clipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
+import de.erikd.lite2edit.litematica.FileHelper
+import de.erikd.lite2edit.litematica.LitematicaReader
+import de.erikd.lite2edit.worldedit.WEWriter
 import java.io.InputStream
 
 object ReadConverter {

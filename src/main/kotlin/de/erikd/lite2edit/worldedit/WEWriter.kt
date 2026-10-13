@@ -3,14 +3,14 @@ package de.erikd.lite2edit.worldedit
 import com.sk89q.worldedit.entity.BaseEntity
 import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard
 import com.sk89q.worldedit.extent.clipboard.Clipboard
-import com.sk89q.worldedit.util.concurrency.LazyReference
 import com.sk89q.worldedit.regions.CuboidRegion
 import com.sk89q.worldedit.registry.state.Property
 import com.sk89q.worldedit.util.Location
+import com.sk89q.worldedit.util.concurrency.LazyReference
 import com.sk89q.worldedit.world.block.BlockState
 import com.sk89q.worldedit.world.block.BlockTypes
 import com.sk89q.worldedit.world.entity.EntityTypes
-import de.erikd.lite2edit.schematic.*
+import de.erikd.lite2edit.schematic.Schematic
 import de.erikd.lite2edit.util.toLinbus
 import net.kyori.adventure.nbt.BinaryTagTypes
 import net.kyori.adventure.nbt.DoubleBinaryTag
