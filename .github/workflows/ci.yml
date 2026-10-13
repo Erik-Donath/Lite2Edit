@@ -7,10 +7,34 @@ on:
     branches: [ "**" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build-and-test:
-    name: Build & Test
+  prepare-matrix:
+    name: Prepare Minecraft version matrix
     runs-on: ubuntu-latest
+    outputs:
+      minecraft_versions: ${{ steps.versions.outputs.minecraft_versions }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read supported versions
+        id: versions
+        run: |
+          jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' \
+            .github/minecraft-versions.json >/dev/null
+          printf 'minecraft_versions=%s\n' "$(jq -c . .github/minecraft-versions.json)" >> "$GITHUB_OUTPUT"
+
+  build-and-test:
+    name: Build & Test (${{ matrix.minecraft_version }})
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft_version: ${{ fromJson(needs.prepare-matrix.outputs.minecraft_versions) }}
 
     steps:
       - name: Checkout repository
@@ -28,20 +52,14 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Run tests
-        run: ./gradlew test
-
-      - name: Build project
-        run: ./gradlew build
-
-      - name: Generate POM file
-        run: ./gradlew generatePomFileForMavenPublication
+      - name: Test and build project
+        run: ./gradlew test build generatePomFileForMavenPublication -Pminecraft_version=${{ matrix.minecraft_version }}
 
       - name: Upload build artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-build-artifacts
+          name: ci-build-artifacts-${{ matrix.minecraft_version }}
           path: |
             build/libs/
             build/publications/maven/pom-default.xml
@@ -51,7 +69,7 @@ jobs:
     name: Qodana Code Quality Scan
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       checks: write
       security-events: write

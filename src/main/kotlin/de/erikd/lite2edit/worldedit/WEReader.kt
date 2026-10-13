@@ -3,7 +3,8 @@ package de.erikd.lite2edit.worldedit
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
 import com.sk89q.worldedit.world.block.BlockTypes
-import de.erikd.lite2edit.schematic.BlockBuilder
+import de.erikd.lite2edit.schematic.Block
+import de.erikd.lite2edit.schematic.BlockState
 import de.erikd.lite2edit.schematic.Schematic
 import de.erikd.lite2edit.schematic.SchematicBuilder
 import de.erikd.lite2edit.schematic.Vec3i
@@ -37,14 +38,16 @@ object WEReader {
                     if (baseBlock.blockType in AIR_TYPES) continue
 
                     builder.block(
-                        BlockBuilder()
-                            .position(Vec3i.fromBlockVector3(pos))
-                            .state(
-                                baseBlock.blockType.id,
-                                baseBlock.states.entries.associate { (prop, value) -> prop.name to value.toString() },
-                                baseBlock.nbt?.toKyori()
+                        Block(
+                            pos = Vec3i.fromBlockVector3(pos),
+                            state = BlockState(
+                                name = baseBlock.blockType.id,
+                                properties = baseBlock.states.entries.associate { (prop, value) ->
+                                    prop.name to value.toString()
+                                },
+                                nbt = baseBlock.nbt?.toKyori()
                             )
-                            .build()
+                        )
                     )
                 }
             }

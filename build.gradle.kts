@@ -5,7 +5,7 @@ plugins {
     kotlin("jvm") version "2.1.21"
     id("fabric-loom") version "1.11.8"
     id("maven-publish")
-    id("com.modrinth.minotaur") version "2.+"
+    id("com.modrinth.minotaur") version "2.10.0"
 }
 
 // Values from gradle.properties
@@ -27,9 +27,6 @@ base {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
-    }
-    sourceSets["main"].java {
-        setSrcDirs(emptySet<String>())
     }
     withSourcesJar()
 }
@@ -64,6 +61,7 @@ dependencies {
     include("net.kyori:examination-string:1.3.0")
 
     testImplementation(kotlin("test"))
+    testRuntimeOnly("com.sk89q.worldedit:worldedit-core:${worldEditVersion}")
 }
 
 tasks.test {
@@ -104,6 +102,8 @@ tasks.processResources {
 modrinth {
     token.set(System.getenv("MODRINTH_TOKEN"))
     projectId.set(System.getenv("MODRINTH_ID") ?: "")
+    changelog.set(System.getenv("MODRINTH_CHANGELOG").orEmpty())
+    syncBodyFrom.set(rootProject.file("README.md").readText())
 
     versionNumber.set("lite2edit-fabric-${minecraftVersion}-${modVersion}")
     versionName.set("Lite2Edit Fabric $modVersion for Minecraft $minecraftVersion")
@@ -146,7 +146,7 @@ publishing {
                     developer {
                         id.set("erik-donath")
                         name.set("Erik Donath")
-                        email.set("erik.donath@gmail.com")
+                        email.set("github@erikdonath.de")
                         url.set("https://github.com/Erik-Donath")
                         roles.set(listOf("developer", "maintainer"))
                         timezone.set("Europe/Berlin")
