@@ -1,10 +1,8 @@
 package de.erikd.lite2edit.litematica
 
 import de.erikd.lite2edit.schematic.Schematic
+import de.erikd.lite2edit.schematic.Vec3i
 import net.kyori.adventure.nbt.*
-import kotlin.math.ceil
-import kotlin.math.log2
-import kotlin.math.min
 
 /*
 [NBT STRUCTURE] Root compound (5 top‑level keys)
@@ -50,25 +48,30 @@ object RegionWriter {
         val size   = schematic.size
         val offset = schematic.min
 
-        val nonAirKeys = schematic.blocks
-            .map  { PaletteKey(it.state.name, it.state.properties) }
-            .distinct()
-            .filterNot { it.name == "minecraft:air" }
+        val paletteIndex = linkedMapOf(PaletteKey("minecraft:air", emptyMap()) to 0)
+        for (block in schematic.blocks) {
+            val key = PaletteKey(block.state.name, block.state.properties)
+            if (key.name != "minecraft:air") paletteIndex.getOrPut(key) { paletteIndex.size }
+        }
+        val paletteKeys = paletteIndex.keys.toList()
 
-        val paletteKeys: List<PaletteKey>   = listOf(PaletteKey("minecraft:air", emptyMap())) + nonAirKeys
-        val paletteIndex: Map<PaletteKey, Int> = paletteKeys.mapIndexed { i, k -> k to i }.toMap()
-
-        val totalBlocks = size.x * size.y * size.z
-        val blockIds    = IntArray(totalBlocks) // default 0 = AIR
-
+        val totalBlocks = if (size == Vec3i.ZERO) {
+            0
+        } else {
+            BlockStatePacking.blockCount(size)
+        }
+        val blockIds = IntArray(totalBlocks)
         for (block in schematic.blocks) {
             val rel   = block.pos - offset
-            val index = rel.x + rel.z * size.x + rel.y * size.x * size.z
-            if (index in 0 until totalBlocks)
-                blockIds[index] = paletteIndex[PaletteKey(block.state.name, block.state.properties)] ?: 0
+            if (rel.x !in 0 until size.x || rel.y !in 0 until size.y || rel.z !in 0 until size.z) continue
+
+            val index = rel.x.toLong() +
+                rel.z.toLong() * size.x +
+                rel.y.toLong() * size.x * size.z
+            blockIds[index.toInt()] = paletteIndex[PaletteKey(block.state.name, block.state.properties)] ?: 0
         }
 
-        val encodedLongs = encodeBlockIds(blockIds, paletteKeys.size)
+        val encodedLongs = BlockStatePacking.encode(blockIds, paletteKeys.size)
 
         val paletteNbt = ListBinaryTag.builder(BinaryTagTypes.COMPOUND).apply {
             for (key in paletteKeys) {
@@ -96,7 +99,7 @@ object RegionWriter {
                     .putInt("z", rel.z)
                 nbt.keySet()
                     .filterNot { it == "x" || it == "y" || it == "z" }
-                    .forEach { key -> entry.put(key, nbt.get(key)!!) }
+                    .forEach { key -> nbt.get(key)?.let { entry.put(key, it) } }
                 add(entry.build())
             }
         }.build()
@@ -119,42 +122,5 @@ object RegionWriter {
             .put("TileEntities",      tileEntitiesNbt)
             .put("Entities",          entitiesNbt)
             .build()
-    }
-
-    /**
-     * Encodes block IDs into Litematica's packed long-array format.
-     * This is the exact inverse of [RegionReader.decodeBlockIds].
-     * See: https://litemapy.readthedocs.io/en/latest/litematics.html
-     */
-    private fun encodeBlockIds(blockIds: IntArray, paletteSize: Int): LongArray {
-        if (blockIds.isEmpty()) return LongArray(0)
-
-        val bitsPerBlock = maxOf(2, ceil(log2(paletteSize.toDouble())).toInt())
-        val totalBits    = blockIds.size * bitsPerBlock
-        val longCount    = (totalBits + 63) / 64
-        val result       = LongArray(longCount)
-
-        var globalBitOffset = 0
-
-        for (id in blockIds) {
-            var remainingBits = bitsPerBlock
-            var value         = id.toLong()
-
-            while (remainingBits > 0) {
-                val currentLongIdx = globalBitOffset / 64
-                val localBitOffset = globalBitOffset % 64
-                val bitsAvailable  = 64 - localBitOffset
-                val bitsToWrite    = min(remainingBits, bitsAvailable)
-
-                val mask = (1L shl bitsToWrite) - 1L
-                result[currentLongIdx] = result[currentLongIdx] or ((value and mask) shl localBitOffset)
-
-                value           = value ushr bitsToWrite
-                remainingBits   -= bitsToWrite
-                globalBitOffset += bitsToWrite
-            }
-        }
-
-        return result
     }
 }

@@ -27,9 +27,21 @@ You can see the source code via: [https://github.com/Erik-Donath/lite2edit](http
 4. Load a `.litematic` file with ```//schematic load "..."```. The schematic will load as a clipboard you can paste and edit.
 5. Save a WorldEdit clipboard back to a `.litematic` file with ```//schematic save -f litematica "..."```.
 
-If you prefer building from source, run:
+### Build from source
+
+Requirements: JDK 21 and an internet connection for Gradle to download dependencies.
+
+Run the tests and build the mod:
+
+```bash
+./gradlew test build
+```
+
+To build from a fresh clone:
+
 ```bash
 git clone https://github.com/Erik-Donath/Lite2Edit.git
+cd Lite2Edit
 ./gradlew build
 # copy the generated JAR from build/libs/ into your mods/ folder
 ```

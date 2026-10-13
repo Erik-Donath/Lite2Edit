@@ -10,6 +10,7 @@ plugins {
 
 // Values from gradle.properties
 val modVersion        = project.findProperty("mod_version")         ?.toString() ?: error("Missing 'mod_version' in gradle.properties")
+val mavenGroup        = project.findProperty("maven_group")         ?.toString() ?: error("Missing 'maven_group' in gradle.properties")
 val minecraftVersion  = project.findProperty("minecraft_version")   ?.toString() ?: error("Missing 'minecraft_version' in gradle.properties")
 val archiveBaseName   = project.findProperty("archives_base_name")  ?.toString() ?: error("Missing 'archives_base_name' in gradle.properties")
 val loaderVersion     = project.findProperty("loader_version")      ?.toString() ?: error("Missing 'loader_version' in gradle.properties")
@@ -17,7 +18,7 @@ val kotlinLoaderVersion = project.findProperty("kotlin_loader_version")?.toStrin
 val worldEditVersion  = project.findProperty("worldedit_version")   ?.toString() ?: error("Missing 'worldedit_version' in gradle.properties")
 
 version = modVersion
-group   = "io.github.erik-donath"
+group   = mavenGroup
 
 base {
     archivesName.set(archiveBaseName)
@@ -61,6 +62,12 @@ dependencies {
     include("net.kyori:adventure-api:4.25.0")
     include("net.kyori:examination-api:1.3.0")
     include("net.kyori:examination-string:1.3.0")
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.withType<KotlinCompile> {
@@ -117,7 +124,7 @@ publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
-            groupId    = "io.github.erik-donath"
+            groupId    = mavenGroup
             artifactId = "lite2edit-mc${minecraftVersion}"
             version    = modVersion
 
