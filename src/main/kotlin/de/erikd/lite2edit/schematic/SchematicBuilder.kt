@@ -24,12 +24,14 @@ class SchematicBuilder {
     }
 
     private fun updateBounds(pos: Vec3i) {
-        if (min == null) {
+        val currentMin = min
+        val currentMax = max
+        if (currentMin == null || currentMax == null) {
             min = pos
             max = pos
         } else {
-            min = Vec3i(minOf(min!!.x, pos.x), minOf(min!!.y, pos.y), minOf(min!!.z, pos.z))
-            max = Vec3i(maxOf(max!!.x, pos.x), maxOf(max!!.y, pos.y), maxOf(max!!.z, pos.z))
+            min = Vec3i(minOf(currentMin.x, pos.x), minOf(currentMin.y, pos.y), minOf(currentMin.z, pos.z))
+            max = Vec3i(maxOf(currentMax.x, pos.x), maxOf(currentMax.y, pos.y), maxOf(currentMax.z, pos.z))
         }
     }
 

@@ -2,7 +2,6 @@ package de.erikd.lite2edit.worldedit
 
 import com.sk89q.worldedit.extent.clipboard.Clipboard
 import com.sk89q.worldedit.math.BlockVector3
-import com.sk89q.worldedit.regions.Region
 import com.sk89q.worldedit.world.block.BlockTypes
 import de.erikd.lite2edit.schematic.BlockBuilder
 import de.erikd.lite2edit.schematic.Schematic
@@ -27,21 +26,29 @@ object WEReader {
         val builder = SchematicBuilder()
 
         // --- Blocks ----------------------------------------------------------
-        blockPositions(clipboard.region)
-            .filterNot { pos -> clipboard.getBlock(pos).blockType in AIR_TYPES }
-            .forEach { pos ->
-                val baseBlock = clipboard.getFullBlock(pos)
-                builder.block(
-                    BlockBuilder()
-                        .position(Vec3i.fromBlockVector3(pos))
-                        .state(
-                            baseBlock.blockType.id,
-                            baseBlock.states.entries.associate { (prop, value) -> prop.name to value.toString() },
-                            baseBlock.nbt?.toKyori()
-                        )
-                        .build()
-                )
+        val region = clipboard.region
+        val min = region.minimumPoint
+        val max = region.maximumPoint
+        for (x in min.x()..max.x()) {
+            for (y in min.y()..max.y()) {
+                for (z in min.z()..max.z()) {
+                    val pos = BlockVector3.at(x, y, z)
+                    val baseBlock = clipboard.getFullBlock(pos)
+                    if (baseBlock.blockType in AIR_TYPES) continue
+
+                    builder.block(
+                        BlockBuilder()
+                            .position(Vec3i.fromBlockVector3(pos))
+                            .state(
+                                baseBlock.blockType.id,
+                                baseBlock.states.entries.associate { (prop, value) -> prop.name to value.toString() },
+                                baseBlock.nbt?.toKyori()
+                            )
+                            .build()
+                    )
+                }
             }
+        }
 
         clipboard.entities.forEach { entity ->
             val state = entity.state ?: return@forEach
@@ -66,16 +73,6 @@ object WEReader {
 
             builder.entity(entityNbt.build())
         }
-
         return builder.build()
-    }
-
-    private fun blockPositions(region: Region): Sequence<BlockVector3> = sequence {
-        val min = region.minimumPoint
-        val max = region.maximumPoint
-        for (x in min.x()..max.x())
-            for (y in min.y()..max.y())
-                for (z in min.z()..max.z())
-                    yield(BlockVector3.at(x, y, z))
     }
 }
