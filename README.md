@@ -18,7 +18,7 @@ Use WorldEdit’s schematic commands:
 
 ```text
 //schematic load "filename"
-//schematic save -f litematica "filename"
+//schematic save -f "filename" litematica
 ```
 
 Lite2Edit registers the `litematica`, `litematic`, and `ltc` format aliases. WorldEdit can therefore also be asked to save with `-f ltc`.
