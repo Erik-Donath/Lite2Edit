@@ -3,8 +3,6 @@
 [![Automatic Dependency Submission](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/dependency-graph/auto-submission/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/dependency-graph/auto-submission)
 [![Build and Publish Release](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/publish.yml/badge.svg)](https://github.com/Erik-Donath/Lite2Edit/actions/workflows/publish.yml)
 
-[![Icon](https://github.com/Erik-Donath/Lite2Edit/blob/master/Lite2Edit.png?raw=true)](#)
-
 Lite2Edit is a small Fabric mod that lets WorldEdit open Litematica schematic files (.litematic).
 
 ---
